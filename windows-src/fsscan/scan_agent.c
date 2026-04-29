@@ -4,6 +4,7 @@
 
 #include "windows/scan/scan_agent.h"
 #include "windows/scan/search_fs.h"
+#include "windows/service/jvm_worker.h"
 
 #include "windows/logging.h"
 #include "windows/evtlog.h"
@@ -15,10 +16,23 @@ static BOOL fs_scan_match_callback (
     const WIN32_FIND_DATAW *find_data,
     LPVOID user_ctx
 ) {
+    errorcode_t rc;
     SYSTEM_DETAILS *system_details = (SYSTEM_DETAILS*)user_ctx;
 
     logmsg(LOGGING_NORMAL, L"[FSSCAN] Found target file: %ls", full_path);
-    /* TODO: Act on found evidence !  */
+    if (!system_details || !*system_details) {
+        logmsg(LOGGING_ERROR, L"[FSSCAN] Invalid SYSTEM_DETAILS context");
+        return TRUE;
+    }
+
+    // We need to sync the JVM detail processing between the many worker threads
+    EnterCriticalSection(&PTR(*system_details).jvm_lock);
+    rc = jvm_worker_run(system_details, full_path);
+    LeaveCriticalSection(&PTR(*system_details).jvm_lock);
+
+    if ( !_IS_SUCCESS(rc) ) {
+        logmsg(LOGGING_ERROR, L"[FSSCAN] Failed to parse and populate the JVM data for: %ls. Code: %d", full_path, rc);
+    }
 
     return TRUE;
 }
@@ -131,6 +145,9 @@ DWORD WINAPI fs_scan_agent_thread(LPVOID param) {
 
         _timeout_counter += PTR(ctx).heartbeat_ms;
     }
+
+    // Clean the locker
+    DeleteCriticalSection(&PTR(systemdetails).jvm_lock);
 
     win_evt_log(L"[FSSCAN] Agent stopped.", LOGLEVEL_WARN);
 

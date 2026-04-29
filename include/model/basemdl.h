@@ -72,6 +72,7 @@ typedef struct _system_details {
     JVM_DETAILS *jvm;
     DWORD jvm_count;
     DWORD jvm_capacity;
+    CRITICAL_SECTION jvm_lock;
 } system_details_t;
 typedef system_details_t *SYSTEM_DETAILS;
 

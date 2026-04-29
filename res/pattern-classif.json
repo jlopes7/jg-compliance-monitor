@@ -99,7 +99,6 @@
             "RegExs": [
                 "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?.*[/\\\\]grid[/\\\\].*[0-9]{2}.*(jdk|jre)",
                 "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?[0-9]{2}.*grid[/\\\\].*(jdk|jre)",
-                "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?[0-9]{2}.*grid[/\\\\].*(jdk|jre)",
                 "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|dbhome_){1}.*[Oo]patch",
                 "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|product[/\\\\]|u0[0-9]).*[/\\\\]db(\\_)?(?:home|name|[0-9]+).*^(?!.*[Cc][Ll][Ii][Ee][Nn][Tt]).*",
                 ".*[Uu][0-9]+.*[/\\\\][Oo][Rr][Aa]([Ii]nventory)?.*",
@@ -112,7 +111,7 @@
                 "^(?:[A-Za-z]:|/var|/usr|/opt).*(?:[Oo][Rr][Aa]([Cc][Ll][Ee])?|[Pp][Rr][Oo]([Dd][Uu][Cc][Tt])?).*[/\\\\][0-9-._]+[a-z][/\\\\](?:[/\\\\].*)?",
                 "^(?:[A-Za-z]:|/var|/usr|/opt).*[/\\\\](?:oracle|product)[/\\\\][0-9a-zA-Z._-]+[/\\\\](?:[/\\\\].*)?",
                 "^(?:[A-Za-z]:|/var|/usr|/opt).*[/\\\\](?:[Oo][Rr][Aa][Cc][Ll][Ee]|[Pp][Rr][Oo][Dd][Uu][Cc][Tt])[/\\\\][0-9a-zA-Z._-]+[/\\\\](?:[/\\\\].*)?",
-                "^(?:[a-zA-Z]\\:)?[/\\\\].+[0-9][0-9]?([abcgei]|ai).*(?:[Gg][Rr][Ii][Dd].+)?.*"
+                "^(?:[a-zA-Z]\\:)?[/\\\\].+[0-9][0-9]?([abcgei]|ai).*(?:[Gg][Rr][Ii][Dd].+).*"
             ]
         },
 	{
@@ -673,6 +672,30 @@
             "RegExs": [
                 "^[A-Za-z]:[/\\\\][Pp]rogram(?:Data|\\sFiles).*[/\\\\][Jj]et[Bb]rains.*[/\\\\](?:[Ii]ntelli[Jj]|[Ii][Dd][Ee][Aa])(?:[/\\\\].*)?",
                 ".*[/\\\\][Ii][Nn][Tt][Ee][Ll]{2}[Jj]\\s?.*"
+            ]
+        },
+        {
+            "Name": "JetBrains GoLand",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\](?:Program Files|Data|\\sFiles)[/\\\\].*[Jj]et[Bb]rains.*[/\\\\][Gg]o[Ll]and.*(?:[/\\\\].*)"
+            ]
+        },
+        {
+            "Name": "JetBrains WebStorm",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\](?:Program Files|Data|\\sFiles)[/\\\\].*[Ww]eb[Ss]torm.*[/\\\\][Gg]o[Ll]and.*(?:[/\\\\].*)"
+            ]
+        },
+        {
+            "Name": "JetBrains CLion",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\](?:Program Files|Data|\\sFiles)[/\\\\].*[Jj]et[Bb]rains.*[/\\\\][Cc]Lion.*(?:[/\\\\].*)"
+            ]
+        },
+        {
+            "Name": "JetBrains Product (Unidentified)",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\](?:Program Files|Data|\\sFiles)[/\\\\].*[Jj]et[Bb]rains.*[/\\\\]jbr(?:[/\\\\].*)"
             ]
         },
         {

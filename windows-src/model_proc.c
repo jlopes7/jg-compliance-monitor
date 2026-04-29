@@ -6,42 +6,44 @@
 #include "windows/config.h"
 #include "windows/logging.h"
 
-static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWSTR productName) {
-    int8_t local_counter = 0;
-    wchar_t product_local[MAX_PATH];
-
+static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWSTR productName, size_t productNameCch) {
+    size_t local_counter = 0;
     BOOL end_matched = FALSE;
 
-    if ( !config || !jvmPath ) {
+    if ( !config || !jvmPath || !productName || productNameCch == 0 ) {
         return ST_CODE_INVALID_PARAM;
     }
 
-    ZeroMemory(product_local, sizeof(product_local));
+    productName[0] = L'\0';
 
     for (; !end_matched && local_counter < PTR(config).model_config->model->entry_list_size; local_counter++) {
         size_t internal_counter = 0;
         size_t entrylst_size = PTR(config).model_config->model->entry_list[local_counter]->pattern_array_size;
-        size_t prdlen = wcslen(PTR(config).model_config->model->entry_list[local_counter]->product_name);
+        PATTERN_ENTRY entry = config->model_config->model->entry_list[local_counter];
 
-        wcscpy_s(product_local, prdlen, PTR(config).model_config->model->entry_list[local_counter]->product_name);
+        if (!entry || !PTR(entry).product_name || !PTR(entry).pattern_array) {
+            continue;
+        }
 
         for ( ; !end_matched && internal_counter < entrylst_size; internal_counter++) {
-            regex_match(
-                jvmPath,
-                PTR(config).model_config->model->entry_list[local_counter]->pattern_array[internal_counter],
-                    &end_matched
-            );
+            if (!entry->pattern_array[internal_counter]) {
+                continue;
+            }
+
+            regex_match(jvmPath, PTR(entry).pattern_array[internal_counter], &end_matched);
 
             if ( end_matched ) {
-                wcscpy_s(productName, prdlen, product_local);
+                wcsncpy_s(productName, productNameCch, entry->product_name, _TRUNCATE);
                 logmsg(LOGGING_NORMAL, L"[MODEL PARSER] The jvm instance (%ls) matched the product: %ls", jvmPath, productName);
             }
         }
     }
 
-    if ( product_local[0] == L'\0' ) {
-        productName = _wstrdup(L"Unknown Product");
+    if ( productName[0] == L'\0' ) {
+        wcsncpy_s(productName, productNameCch, L"Unknown Product", _TRUNCATE);
     }
+
+    logmsg(LOGGING_NORMAL, L"[MODEL PARSER] Product associated with the JVM instance(%ls): %ls", jvmPath, productName);
 
     return ST_CODE_SUCCESS;
 }
@@ -160,6 +162,9 @@ errorcode_t parse_model_system(SYSTEM_DETAILS *sysdetails) {
     PTR(*sysdetails).jvm_capacity = LOW_BUFFER_SIZE;
     PTR(*sysdetails).jvm_count = 0;
 
+    // Locker initialization
+    InitializeCriticalSection(&PTR(*sysdetails).jvm_lock);
+
     return ST_CODE_SUCCESS;
 }
 
@@ -190,7 +195,9 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
     }
 
     if (PTR(*sysdetails).jvm_count >= PTR(*sysdetails).jvm_capacity) {
-        new_capacity = PTR(*sysdetails).jvm_capacity * 2;
+        new_capacity = PTR(*sysdetails).jvm_capacity == 0
+                            ? LOW_BUFFER_SIZE
+                            : PTR(*sysdetails).jvm_capacity * 2;
 
         new_list = HeapReAlloc(
             GetProcessHeap(),
@@ -207,8 +214,12 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
         PTR(*sysdetails).jvm_capacity = new_capacity;
     }
 
-    PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count] =
-        HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(jvm_details_t));
+    item = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(jvm_details_t));
+    if (!item) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
+    PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count] = item;
+
     if (!PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]) {
         return ST_CODE_MEMORY_ALLOCATION_FAILED;
     }
@@ -217,7 +228,7 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
      * LOAD THE PRODUCT DETAILS
      * -------------------------
      */
-    result = parse_model_jvm_product(config, jvmPath, product_loc);
+    result = parse_model_jvm_product(config, jvmPath, product_loc, _LPWLEN(product_loc));
     if ( !_IS_SUCCESS(result) ) {
         logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse product. RC: %d", result);
     }
@@ -247,14 +258,6 @@ errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData) {
     result = get_config(&config);
     if ( !_IS_SUCCESS(result) ) {
         return result;
-    }
-
-    /*
-     * LOAD THE SYSTEM DETAILS
-     * -------------------------
-     */
-    if ( !PTR(sysdetails).os ) { // Was not initialized befored
-        parse_model_system(&sysdetails);
     }
 
     // Add the new JVM

@@ -34,6 +34,8 @@ if(WIN32)
             windows-src/db/agent_db.c
             windows-src/cjson/cJSON.c
 
+            windows-src/workers/jvm_worker.c
+
             res/agent.rc
     )
 
