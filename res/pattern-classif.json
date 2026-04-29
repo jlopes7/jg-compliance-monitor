@@ -1,0 +1,700 @@
+{
+    "Entries": [
+        {
+            "Name": "System Wide Installation",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)/lib[0-9]*/[Jj][Mm][Mm]/j(?:ava|re|dk)",
+                "^(?:/var|/usr|/opt)/lib[0-9]*/[Jj]ava.*",
+                "^(?:/var|/usr|/opt)/(?:java[0-9]*|ora[a-zA-Z0-9]*)?/j(?:re|dk).*",
+                "^(?:/var|/usr|/opt)/ibm/java.*",
+                "^(?:/var|/usr|/opt)/[Ii][Bb][Mm]/.*-semeru-.*j(?:re|dk).*",
+                "^(?:/var|/usr|/opt)/lib/[Jj][Vv][Mm]/[Ii][Bb][Mm].*-semeru-.*j(?:re|dk).*",
+                "^(?:/var|/usr|/opt)/lib/[Jj][Vv][Mm]/[Zz](?:re|ulu).*",
+                "^.*/[Aa]dopt[Oo]pen[Jj][Dd][Kk]/j(?:dk|re)(-?[0-9.\\-]*)?(?:-?(?:hotspot|[Oo]pen[Jj]9))?.*",
+                "^(?:/etc)/.*j(?:ava|dk|re)[0-9\\-?.?]*.*",
+                "^[A-Za-z]:[/\\\\](?:[Pp]rogram\\s[Ff]iles(?:\\s\\([Xx]86\\))?)[/\\\\][Jj](?:[Aa][Vv][Aa]|[Dd][Kk]|[Rr][Ee]).*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram\\s[Ff]iles.*[/\\\\][Ii][Bb][Mm].*[/\\\\][Jj]ava.*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram\\s[Ff]iles.*[/\\\\][Ss]emeru.*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram\\s[Ff]iles.*[/\\\\][Zz][Uu][Ll][Uu].*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram\\s[Ff]iles.*[/\\\\][Aa]doptium.*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram\\s[Ff]iles.*[/\\\\](?:[Aa]doptium|[Aa]dopt[Oo]pen[Jj][Dd][Kk]).*",
+                "^[A-Za-z]:[/\\\\][Jj][Aa][Vv][Aa]\\\\j(?:re|dk).*",
+                "^(?:/var|/usr|/opt)/lib/[Jj][Vv][Mm]/.*\\b[Jj](?:[Dd][Kk]|[Rr][Ee]|[Aa][Vv][Aa]).*",
+                "^[A-Za-z]:[/\\\\][Jj](?:[Aa][Vv][Aa]|[Rr][Ee]|[Dd][Kk])[0-9._]+[/\\\\].*",
+		".*/(?:System|Library)/[Jj]ava/.*/(?:j(dk|re)).*/[Cc]ontents/.*",
+                "^(?:[A-Za-z]:[/\\\\](?:[Pp]rogram\\s[Ff]iles(?:\\s\\([Xx]86\\))?)|/var|/usr|/opt).+[Jj][Rr][Oo][Cc][Kk][Ii][Tt].+(?:[Jj]([Dd][Kk]|[Rr][Ee])).+"
+            ]
+        },
+        {
+	    "Name": "Part of System Wide Installation",
+            "RegExs": [
+	        "/(?:usr|opt|var)/bin/java.*",
+                "^[A-Za-z]:[/\\\\][Pp]rogram(?:\\s[Ff]iles(\\s?\\([Xx]86\\))?|[Dd]ata)[/\\\\].*[Cc]ommon\\s*[Ff]iles.+",
+                ".+[Cc][Oo][Mm]{2}[Oo][Nn]\\s*[Ff][Ii][Ll][Ee][Ss].*"
+            ]
+        },
+        {
+            "Name": "Developer JDK Installation using SDKMAN",
+            "RegExs": [
+                ".*[/\\\\][Uu]ser(?:s)?[/\\\\][a-zA-Z0-9_.-]+[/\\\\].*(?:\\.)?[Ss][Dd][Kk][Mm][Aa][Nn][/\\\\].*java.*"
+            ]
+        },
+        {
+            "Name": "Developer JDK Installation using JEnv",
+            "RegExs": [
+                ".*[/\\\\][Uu]ser(?:s)?[/\\\\][a-zA-Z0-9_.-]+[/\\\\].*(?:\\.)?[Jj][Ee][Nn][Vv][/\\\\].*java.*"
+            ]
+        },
+        {
+            "Name": "Garbage/Noise",
+            "RegExs": [
+                "^[A-Za-z]:\\\\\\$[Rr]ecycle\\.Bin.*",
+                ".*(?:\\b[Bb][Kk][Pp]\\b|\\b[Oo][Ll][Dd]\\b|old_|[Bb][Aa][Cc][Kk][_-]?[Uu][Pp]).*",
+                ".*(?:[-_.\\s]+[Oo][Ll][Dd]\\b[-_.\\s]*|\\b[Oo][Ll][Dd][-_.\\s]+).*",
+                ".*(?:^|[/\\\\])([Tt][Ee][Mm][Pp]|tmp)(?:$|[/\\\\]).*",
+                ".*(\\s)+-(\\s)+[Cc]opy\\b.*",
+                ".*(?:\\.+|(\\s)+)\\([0-9]+\\).*",
+                ".*[/\\\\][Dd]ownloads?[/\\\\].*",
+                ".*(?:[/\\\\]\\.Trash|[/\\\\]lost\\+found).*",
+                ".*\\b(?:[Tt][Ee][Ss][Tt])\\b.*",
+                ".*[/\\\\].+(?:[Tt][Mm][Pp]|[Tt][Ee][Mm][Pp])\\b.*",
+                ".*[-_.\\s]*[Rr][Ee][Mm][Oo][Vv][Ee][Dd](?=[-_.\\s]|$).*",
+                "^[A-Za-z]:[/\\\\](?:[Uu]sers[/\\\\][a-zA-Z-_.]+[/\\\\])?[Pp]rogram[Dd]ata(?:[/\\\\].*)?$",
+                "^[A-Za-z]:[/\\\\].*[/\\\\][Aa]pp[Dd]ata.*[/\\\\][Ll]ocal[/\\\\].*[/\\\\][Tt][Ee][Mm][Pp].*",
+                "^[A-Za-z]:[/\\\\].*[Oo]racle[/\\\\][Jj]ava[/\\\\]java(?:[0-9])?path[/\\\\].*",
+                ".+[Ee][Pp][Ii][Mm][Ii][Nn][Ss][Tt][Aa][Ll]{2}.+[Pp][Aa][Tt][Cc][Hh].*",
+                ".+[Bb][Mm][Ww][Dd][Oo][Ww][Nn][Ll][Oo][Aa][Dd][Mm][Aa][Nn][Aa][Gg][Ee][Rr].*",
+                ".+\\_[Jj][Rr][Ee].*"
+            ]
+        },
+	{
+		"Name": "Amazon - Kindle",
+		"RegExs": [
+			".+[Aa][Mm][Aa][Zz][Oo][Nn].+[Kk][Ii][Nn][Dd][Ll][Ee].*"
+		]
+	},
+        {
+            "Name": "Ignore, not real evidence",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\][Pp]rogram(?:Data|\\sFiles(\\s\\([Xx]86\\))?).*(?:[Cc]ommon(\\s)?[Ff]ile(s)?|[Oo]racle).*[/\\\\]javapath(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Oracle Database Agent",
+            "RegExs": [
+                "(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|product[/\\\\]){1}.*agent[/\\\\]"
+            ]
+        },
+        {
+            "Name": "Oracle Database Client",
+            "RegExs": [
+                "(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|product[/\\\\]){1}.*[/\\\\]client_[0-9]+",
+                ".*(?:[Oo][Rr][Aa][Cc][Ll][Ee][.0-9]+)+[/\\\\](?:[Oo][Rr][Aa])?(?:\\b[Cc][Ll][Ii][Ee][Nn][Tt])\\s*[0-9]+[._0-9]*.*",
+                ".*[/\\\\][Oo][Rr][Aa][Cc][Ll][Ee].*[/\\\\]([Oo][Rr][Aa][Cc][Ll][Ii][Ee][Nn][Tt][0-9]+)\\b.*",
+                ".*[Oo][Rr][Aa][Cc][Ll][Ee].*[0-9][0-9._-]*.*[Cc][Ll][Ii][Ee][Nn][Tt].+"
+            ]
+        },
+        {
+            "Name": "Oracle Database",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?.*[/\\\\]grid[/\\\\].*[0-9]{2}.*(jdk|jre)",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?[0-9]{2}.*grid[/\\\\].*(jdk|jre)",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*([/\\\\]app)?[0-9]{2}.*grid[/\\\\].*(jdk|jre)",
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|dbhome_){1}.*[Oo]patch",
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:oracle[/\\\\]|app[/\\\\]|grid[/\\\\]|product[/\\\\]|u0[0-9]).*[/\\\\]db(\\_)?(?:home|name|[0-9]+).*^(?!.*[Cc][Ll][Ii][Ee][Nn][Tt]).*",
+                ".*[Uu][0-9]+.*[/\\\\][Oo][Rr][Aa]([Ii]nventory)?.*",
+                ".*[Uu][0-9]+.*[/\\\\][0-9.-]+.*(?:[Gg][Rr][Ii][Dd])?.*",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*\\b[.0-9]+[/\\\\].*\\b(?:[Dd][Bb][Hh][Oo][Mm][Ee]_?[0-9])\\b[/\\\\].*",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*(?:[/\\\\]app)?.*(?:[/\\\\][Oo][Rr][Aa][Cc][Ll][Ee])?.*(?:\\b[.0-9]+)?.*[/\\\\]\\b[Gg][Rr][Ii][Dd]_?[0-9]?.*",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*(?:[/\\\\]app)?.*(?:[/\\\\][Oo][Rr][Aa][Cc][Ll][Ee]|[Ss][Oo][Ff][Tt][Ww][Aa][Rr][Ee])?.*\\bproduct.*[/\\\\][.0-9]+[/\\\\].*",
+                "^(?:[A-Za-z]:|/var|/usr|/opt)(?:[/\\\\]app)?[/\\\\]oracle[/\\\\][0-9.]+[/\\\\](?:[Dd][Bb]_?[Hh][Oo][Mm][Ee]|[Dd][Bb][Nn][Aa][Mm][Ee]).*",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*(?:[Oo][Rr][Aa]([Cc][Ll][Ee])?|[Pp][Rr][Oo]([Dd][Uu][Cc][Tt])?).*[Dd][Bb](?:[_-])?[Hh][Oo][Mm][Ee](?:[/\\\\].*)?",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*(?:[Oo][Rr][Aa]([Cc][Ll][Ee])?|[Pp][Rr][Oo]([Dd][Uu][Cc][Tt])?).*[/\\\\][0-9-._]+[a-z][/\\\\](?:[/\\\\].*)?",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*[/\\\\](?:oracle|product)[/\\\\][0-9a-zA-Z._-]+[/\\\\](?:[/\\\\].*)?",
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*[/\\\\](?:[Oo][Rr][Aa][Cc][Ll][Ee]|[Pp][Rr][Oo][Dd][Uu][Cc][Tt])[/\\\\][0-9a-zA-Z._-]+[/\\\\](?:[/\\\\].*)?",
+                "^(?:[a-zA-Z]\\:)?[/\\\\].+[0-9][0-9]?([abcgei]|ai).*(?:[Gg][Rr][Ii][Dd].+)?.*"
+            ]
+        },
+	{
+	    "Name": "Oracle - Forms/Report",
+	    "RegExs": [
+	        "^(?:[a-zA-Z]\\:)?[/\\\\].+[Oo][Rr][Aa](?:[Cc][Ll][Ee])?.+[Ff][Oo][Rr][Mm].+(?:[Rr][Ee][Pp][Oo][Rr][Tt][Ss])?.+"
+	    ]
+	},
+        {
+            "Name": "Oracle - Forms/Report",
+            "RegExs": [
+                "^(?:[a-zA-Z]\\:)?[/\\\\].+[Oo][Rr][Aa](?:[Cc][Ll][Ee])?.+[Ff][Oo][Rr][Mm].+(?:[Rr][Ee][Pp][Oo][Rr][Tt][Ss])?.+"
+            ]
+        },
+        {
+            "Name": "Oracle Installer",
+            "RegExs": [
+                ".*[/\\\\][Oo][Rr][Aa][Ii][Nn][Ss][Tt][Aa][Ll][LL][0-9-_.]*[a-zA-Z]*(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Oracle Fusion Middleware",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt|[Pp]rogram(?:Data|\\sFiles(?:\\s\\([Xx]86\\))?))[/\\\\](?:app[/\\\\])?.*[/\\\\][Mm][Ii][Dd]{2}[Ll][Ee][Ww][Aa][Rr][Ee]"
+            ]
+        },
+        {
+            "Name": "Oracle WebLogic AppServer",
+            "RegExs": [
+                "^.*[Oo]racle.*[Mm]iddleware.*[Ww][Ll][Ss](?:[Ee][Rr][Vv][Ee][Rr])?.*$",
+                "^.*/[Oo]racle.*/[Mm]iddleware/.*/[Ww][Ll][Ss](?:[Ee][Rr][Vv][Ee][Rr])?(?:/soa.*)?$",
+                ".+[Oo][Rr][Aa](?:[Cc][Ll][Ee])?.+[Mm][Ii][Dd]{2}[Ll][Ee][Ww][Aa][Rr][Ee].+"
+            ]
+        },
+        {
+            "Name": "Oracle SQL Developer",
+            "RegExs": [
+                ".*(?:[Oo][Rr][Aa][Cc][Ll][Ee]\\.)?(?:[Ss][Qq][Ll][_-]?[Dd][Ee][Vv][Ee][Ll][Oo][Pp][Ee][Rr])+",
+                ".*[Oo][Rr][Aa][Cc][Ll][Ee][/\\\\].*[Jj][Dd][Ee][Vv](?:[a-zA-Z._-]|[0-9._-])*_?[0-9._-]*(?:[/\\\\].*)?",
+                ".*(?:[Pp]rogram(Data|\\sFiles(\\s\\([Xx]86\\))?)).*[Ss][Qq][Ll](?:\\s)?[Dd][Ee][Vv][Ee][Ll][Oo][Pp][Ee][Rr].*",
+                ".*[Oo]racle.*[Dd]esigner",
+		".*[Oo][Rr][Aa]([Cc][Ll][Ee])?.+[Ss][Qq][Ll]\\s*[Dd][Ee][Vv][Ee][Ll][Oo][Pp][Ee][Rr].+"
+            ]
+        },
+        {
+            "Name": "Oracle SQL Developer - Data Modeler",
+            "RegExs": [
+                ".*(?:[Oo][Rr][Aa][Cc][Ll][Ee]\\.)?(?:[Ss][Qq][Ll][_-]?[Dd][Ee][Vv][Ee][Ll][Oo][Pp][Ee][Rr])+",
+                ".*[Oo][Rr][Aa][Cc][Ll][Ee][/\\\\].*[Jj][Dd][Ee][Vv](?:[a-zA-Z._-]|[0-9._-])*_?[0-9._-]*(?:[/\\\\].*)?",
+                ".*(?:[Pp]rogram(Data|\\sFiles(\\s\\([Xx]86\\))?)).*[Ss][Qq][Ll](?:\\s)?[Dd][Ee][Vv][Ee][Ll][Oo][Pp][Ee][Rr].*",
+                ".*[Oo]racle.*[Dd]esigner",
+                ".+[Ss][Qq][Ll].+[Dd][Aa][Tt][Aa][Mm][Oo][Dd][Ee][Ll][Ee][Rr].*"
+            ]
+        },
+        {
+            "Name": "IBM - Process Designer",
+            "RegExs": [
+                ".*[Ii][Bb][Mm](?:[/\\\\]|\\s)+.*(?:[Ii]ntegration|[Pp][Rr][Oo][Cc][Ee][Ss]{2})(?:\\s)*[Dd]esigner.*"
+            ]
+        },
+        {
+            "Name": "Oracle Exadata Deployment Assistant (OEDA)",
+            "RegExs": [
+                ".*[Ee][Xx][Aa][Dd][Aa][Tt][Aa][/\\\\].*[Oo][Ee][Dd][Aa].*"
+            ]
+        },
+        {
+            "Name": "Oracle EPM System",
+            "RegExs": [
+                "^(?:[A-Za-z]:)?[/\\\\].*[Oo][Rr][Aa][Cc][Ll][Ee][/\\\\].*(?:[Mm][Ii][Dd]{2}[Ll][Ee][Ww][Aa][Rr][Ee]|[Ee][Pp][Mm])+.*(?:[Aa][Uu][Tt][Oo][Mm][Aa][Tt][Ee]|[Ss][Yy][Ss][Tt][Ee][Mm])(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Oracle Autonomous Health Framework",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)/.*[Oo]racle\\.[Aa][Hh][Ff]",
+                "^(?:/var|/usr|/opt).*/[Tt][Ff][Aa]\\b.*"
+            ]
+        },
+        {
+            "Name": "Oracle Patch Kit (OPatch/RU)",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)/.*/[Oo]racle/(?:[Ss]oftware/)?.*/[0-9]{3,}/([0-9]{3,})?.*files/(?:jdk:jre)",
+                "^(?:/var|/usr|/opt)\\b.*(?:/app)?.*/[Oo]racle/.*/[Pp][Aa][Tt][Cc][Hh]\\b.*/[0-9]+\\b.*(/[0-9]+)*.*/files/.*",
+                "^(?:/var|/usr|/opt)\\b.*(?:/app)?.*(?:/[Pp][Aa][Tt][Cc][Hh]|/[Ss]oftware|export)\\b.*/[0-9]+\\b.*(/[0-9]+)*.*/files/.*",
+                "^(?:/var|/usr|/opt)\\b.*/[0-9]+\\b.*/[0-9]+\\b.*/files/.*",
+                ".*/[0-9]{3,}[\\\\/]([0-9]{3,}[\\\\/])?.*files[\\\\/].*",
+		        "^(?:[a-zA-Z]\\:)?[/\\\\].*[0-9._-]+.*[/\\\\][Oo][Pp][Aa][Tt][Cc][Hh].*",
+                ".+[Oo][Pp][Aa][Tt][Cc][Hh].*"
+            ]
+        },
+        {
+            "Name": "Oracle Trace Analyzer",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)/.*/[Oo]racle/(product)?.*/tfa"
+            ]
+        },
+        {
+            "Name": "Telecordia ARIS",
+            "RegExs": [
+                ".*(?:[Tt]elcordia)?.*\\\\[Aa][Rr][Ii][Ss].*"
+            ]
+        },
+        {
+            "Name": "SmartBear SoapUI",
+            "RegExs": [
+                "(?:[Ss]mart[Bb]ear)?.*\\\\[Ss][Oo][Aa][Pp][Uu][Ii]\\b.*",
+                ".*[Ss][Oo][Aa][Pp][Uu][Ii].*"
+            ]
+        },
+        {
+            "Name": "PDF24",
+            "RegExs": [
+                ".*\\\\(?:\\b[Pp][Dd][Ff]24\\b)\\\\.*"
+            ]
+        },
+        {
+            "Name": "MathWorks MATLAB",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\][Pp]rogram(?:Data|\\sFiles).*[/\\\\][Mm][Aa][Tt][Ll][Aa][Bb][/\\\\].*(?:[Rr][0-9]{2,}[a-zA-Z]?|[Vv][0-9]{2,}|[Mm][Aa][Tt][Ll][Aa][Bb]\\s[Rr]untime)(?:[/\\\\].*)?",
+                ".*[/\\\\][Mm][Aa][Tt][Ll][Aa][Bb]\\s+(?:[Vv])?[.0-9]+[/\\\\][Ss][Yy][Ss][/\\\\].*",
+                ".*[/\\\\][Mm][Aa][Tt][Ll][Aa][Bb][/\\\\].*[.0-9]\\b[/\\\\].*[Mm][Aa][Tt][Ll][Aa][Bb](?:\\s|_)+[Rr][Uu][Nn][Tt][Ii][Mm][Ee].*",
+                "^[A-Za-z]:[/\\\\][Mm][Aa][Tt][Ll][Aa][Bb].*[/\\\\](?:[Rr][0-9]{2,}[a-zA-Z]?|[Vv][0-9]{2,}|[Mm][Aa][Tt][Ll][Aa][Bb]).*"
+            ]
+        },
+        {
+            "Name": "JetBrains PyCharm",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\][Pp]rogram(?:Data|\\sFiles).*[/\\\\][Jj]et[Bb]rains.*[/\\\\][Pp]y[Cc]harm(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "DB Visualizer",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program(?:Data|\\sFiles).*\\\\[Dd][Bb][Vv][Ii][Ss][Uu][Aa][Ll][Ii][Zz][Ee][Rr](?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Arduino Software",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program(?:Data|\\sFiles).*[Aa][Rr][Dd][Uu][Ii][Nn][Oo](?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Android Studio",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program(?:Data|\\sFiles).*[Aa][Nn][Dd][Rr][Oo][Ii][Dd](?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Siemens NX (CAD/CAM/CAE)",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program(?:Data|\\sFiles).*\\\\Siemens\\\\(NX)+"
+            ]
+        },
+        {
+            "Name": "Tibco EMS",
+            "RegExs": [
+              "^(?:.*[/\\\\])?[Tt][Ii][Bb][Cc][Oo](?:.*[Ee][Mm][Ss])?(?:[/\\\\])[0-9._]+(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "Tibco Software",
+            "RegExs": [
+                ".*[Tt][Ii][Bb][Cc][Oo].*"
+            ]
+        },
+        {
+            "Name": "Informatica",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Ii]nformatica(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "OpenText Documentum",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Dd]ocumentum(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "Symantec",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Ss]ymantec(?:[/\\\\].*)?$",
+                ".*[Ss][Yy][Mm][Aa][Nn][Tt][Ee][Cc].*"
+            ]
+        },
+        {
+            "Name": "Appway",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Aa]pp[Ww]ay(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "IBM WMQ",
+            "RegExs": [
+                "^(?:.*[/\\\\])?(?:[Ii][Bb][Mm])?.*[Mm][Qq][Mm](?:[/\\\\])[Jj]ava.*$",
+                ".+(?:[Ii][Bb][Mm])?.+[Mm][Qq]\\s*(?:[Cc][Oo][Nn]{2}[Ee][Cc][Tt][Oo][Rr]|[Ee][Xx][Pp][Ll][Oo][Rr][Ee][Rr]|[Ss][Ee][Rr][Ii][Ee][Ss]).+"
+            ]
+        },
+        {
+            "Name": "Elasticsearch",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Ee]lasticsearch-?[0-9.]+(?:[/\\\\])(?:[Jj](?:[Dd][Kk]|[Rr][Ee])|[Jj]ava).*",
+                ".*[/\\\\][Ee]lastic[Ss]earch.*[/\\\\](?:[Ee]lastic[Ss]earch)*.*"
+            ]
+        },
+        {
+            "Name": "Apache Solr",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Ss][Oo][Ll][Rr]-?[0-9.]+[a-zA-Z]*.*$"
+            ]
+        },
+        {
+            "Name": "Mule ESB",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Mm][Uu][Ll][Ee](?:-?[Ee]nterprise)?(?:-?[Ss]tandalone)?-?[0-9.\\-]+.*$"
+            ]
+        },
+        {
+            "Name": "Informatica PowerCenter",
+            "RegExs": [
+                "^(?:.*[/\\\\])?[Ii][Nn][Ff][Oo][Rr][Mm][Aa][Tt][Ii][Cc][Aa](?:\\\\.*)?$"
+            ]
+        },
+        {
+            "Name": "WorkFusion",
+            "RegExs": [
+                "^(?:.*[/\\\\])?.*([Ii]nformatica)?.*([Ii]ntelligent[Aa]utomation[Cc]loud|[Rr][Pp][Aa][Ee]xpress).*"
+            ]
+        },
+        {
+            "Name": "ElasticSearch (JDK/JRE)",
+            "RegExs": [
+                "^(?:.*[/\\\\])?elasticsearch-?[0-9.]+[a-zA-Z]*(?:[/\\\\]).*(?:[/\\\\])[Jj](?:[Rr][Ee]|[Dd][Kk]).*"
+            ]
+        },
+        {
+            "Name": "Adobe Software",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program(?:Data|\\sFiles)[/\\\\].*[Aa][Dd][Oo][Bb][Ee]\\\\.*"
+            ]
+        },
+        {
+            "Name": "Local Workload Automation CLI",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)\\b.*\\-extras.*/lwac\\-cli.*"
+            ]
+        },
+        {
+            "Name": "Keysight ADS (Advanced Design System)",
+            "RegExs": [
+                "^[A-Za-z]:\\\\Program\\sFiles\\\\Keysight\\\\(?:ADS[0-9]+|EEsof_License_Tools)(?:\\\\.*)?$",
+                "^[A-Za-z]:\\\\Keysight[[/\\\\]\\\\]ADS[0-9]+[[/\\\\]\\\\]ADS[0-9]+_Update.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]SystemVue[0-9]+.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]SystemVueVTB[0-9]+.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]EMPro[0-9]+.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]EMPro[0-9]+_?Update.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]IQTools[[/\\\\]\\\\][Ss][Yy][Ss].*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]Genesys[0-9]+.*",
+                "^[A-Za-z]:\\\\Program\\ Files[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]SystemVue[0-9]+.*",
+                "^[A-Za-z]:\\\\Keysight[[/\\\\]\\\\]ICCAP_[0-9]+[[/\\\\]\\\\].*",
+                "^[A-Za-z]:\\\\software[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]SystemVue[0-9]+.*",
+                "^[A-Za-z]:\\\\Program\\ Files\\ \\(x[0-9]+\\)[[/\\\\]\\\\]Keysight[[/\\\\]\\\\]VEE.*",
+                "^[A-Za-z]:\\\\Keysight[[/\\\\]\\\\]EMPro[0-9]+_[0-9]+.*"
+            ]
+        },
+        {
+            "Name": "SAP Business Object",
+            "RegExs": [
+                "^(?:/usr|/opt|/sapmnt|/usr/sap)/sap/[^/]+/J[0-9]+/.*(?:jre|jdk|jvm).*",
+                "^[A-Za-z]:[/\\\\]usr[/\\\\]sap[/\\\\][^/\\\\]+[/\\\\]J[0-9]+[/\\\\].*(?:jre|jdk|jvm).*",
+                "^[A-Za-z]:[/\\\\](?:Program(?:Data|\\sFiles)(\\s\\(x86\\))?)?[/\\\\](?:SAP\\s)?Business\\sObjects(?:[/\\\\].*)?$",
+                "^[A-Za-z]:[/\\\\].*[Ss][Aa][Pp](?:\\s)?[Bb]usiness[Oo]bjects(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "ArcGIS CityEngine",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Program\\sFiles[/\\\\]ArcGIS[/\\\\]CityEngine[0-9.]+(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "WebLCT (Web Load Classification Tool)",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]WebLCT[/\\\\]weblct[/\\\\]dc(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "GeoGebra",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\].*[/\\\\][Gg][Ee][Oo][Gg][Ee][Bb][Rr][Aa]\\b.*[0-9.]+(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "AppWork GmbH - JDownloader",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Users[/\\\\][^/\\\\]+[/\\\\](?:AppData[/\\\\]Local[/\\\\])?[Jj][Dd]ownloader\\s?[0-9.]+(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Mentor Graphics Valor NPI",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]MentorGraphics[/\\\\]Valor[/\\\\][^/\\\\]+[/\\\\].*(?:jre|jdk|java)(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Dell EMC Unity Connection Utility",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Program\\sFiles(?:\\s\\(x86\\))?[/\\\\]Dell.*EMC[/\\\\][Uu]nity[/\\\\][Cc]onnection[Uu]tility(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Genuitec MyEclipse",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\].*[Mm][Yy][Ee][Cc][Ll][Ii][Pp][Ss][Ee].*(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "JImage",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\].*/[Jj][Ii]mage(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Nokia 2G Flexi BTS Site Manager",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Program\\sFiles(?:\\s\\(x86\\))?[/\\\\]Nokia[/\\\\]Managers.*2G\\sFlexi.*Manager(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Bentley OpenRail Designer",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Program\\sFiles(?:\\s\\(x86\\))?[/\\\\].*[Bb][Ee][Nn][Tt][Ll][Ee][Yy][/\\\\].*[Oo][Pp][Ee][Nn][Rr][Aa][Ii][Ll](?:\\s?[Dd]esigner)?[\\sa-zA-Z0-9._-]+[/\\\\](?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Bentley Software",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\]Program\\sFiles(?:\\s\\(x86\\))?[/\\\\].*[Bb][Ee][Nn][Tt][Ll][Ee][Yy](?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Cisco Software",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*[/\\\\][Cc][Ii][Ss][Cc][Oo](?:\\s)?(?:[Ss][Yy][Ss][Tt][Ee][MM][Ss])?(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "MS Visual Studio Code",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*\\.?vscode.(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Cygwin Bundled App",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\].*[Cc][Yy][Gg][WW][Ii][Mm].*"
+            ]
+        },
+	{
+	    "Name": "Hive Streaming",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt).*[Pp]rogram(?:\\s[Ff]iles|Data)?.*[/\\\\][Hh]ive\\s[Ss]treaming(?:[/\\\\].*)?"
+            ]
+        },
+        {
+            "Name": "Apache Tomcat AppServer",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:[Tt][Oo][Mm][Cc][Aa][Tt]|[Tt][Oo][Mm][Ee][Ee]).*"
+            ]
+        },
+        {
+            "Name": "JBoss AppServer",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*[Jj][Bb][Oo][Ss][Ss].*",
+                "^(?:[A-Za-z]:[/\\\\]|/).*(?:[Jj][Bb][Oo][Ss]{2}(?:-[Ee][Aa][Pp]|-[Aa][Ss])?-[0-9.]+(?:\\.[A-Za-z0-9]+)*)(?:[/\\\\].*)?$"
+            ]
+        },
+        {
+            "Name": "IBM WebSphere AppServer",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\].*(?:[Ii][Bb][Mm][0-9]?|[Ww]eb[Ss]phere)?[/\\\\][Ww]eb[Ss]phere[/\\\\]App[Ss]erver(?:[/\\\\].*)?$",
+                ".+(?:[Ii][Bb][Mm])?.*(?:[Ww][Ee][Bb][Ss][Pp][Hh][Ee][Rr][Ee]|[Ww][Aa][Ss]).+"
+            ]
+        },
+        {
+            "Name": "IBM - WebSphere MQ Series/Explorer",
+            "RegExs": [
+                "^(?:[A-Za-z].{2}[Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?|/var|/usr|/opt)[/\\\\].*(?:[Ii][Bb][Mm])*.*(?:[Ww]eb[Ss]phere)?(?:\\s)?[Mm][Qq](?:\\s)?(?:[Ee]xplorer)?.*",
+                "^(?:[A-Za-z].{2}).*(?:[Ii][Bb][Mm]\\s)?(?:[Ww]eb[Ss]phere)?(?:\\s)?[Mm][Qq](?:\\s)?[Ee]xplorer.*"
+            ]
+        },
+        {
+            "Name": "IBM - BM InfoSphere Information Server",
+            "RegExs": [
+                ".*[Ii][Bb][Mm][/\\\\].*(?:IS[0-9.-_]+|[Ii]nformation(\\s)?[Ss]erver)+.*"
+            ]
+        },
+        {
+            "Name": "MicroFocus (part of OpenText)",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Mm]icro(?:\\s)?[Ff]ocus.*"
+            ]
+        },
+        {
+            "Name": "Custom User Profile Installation",
+            "RegExs": [
+                "^[A-Za-z]:\\\\[Uu][Ss][Ee][Rr](?:[Ss])?\\\\[a-zA-Z0-9-._\\$]+(?:[/\\\\].*)?",
+                "^/home/[a-zA-Z0-9-._\\$]+(?:[/\\\\].*)?",
+                "^/Users/[a-zA-Z0-9-._\\$]+(?:[/\\\\].*)?",
+                ".*[/\\\\][Uu]sers[/\\\\][a-zA-Z0-9_.-]+[/\\\\].*[/\\\\](?:jdk|jre).*"
+            ]
+        },
+        {
+            "Name": "Cisco Prime Central",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\]primecentral.*(?:faultmgmt|[Xx][Mm][Pp])?.*"
+            ]
+        },
+        {
+            "Name": "Cisco Prime Provisiong",
+            "RegExs": [
+                "^(?:[A-Za-z]:|/var|/usr|/opt)[/\\\\][Pp]rime[Pp]rovisioning.*"
+            ]
+        },
+        {
+            "Name": "Veritas - NetBackup",
+            "RegExs": [
+                "^(?:/var|/usr|/opt)/[Oo]pen[Vv](?:[/\\\\].*)?"
+            ]
+        },
+	{
+	     "Name": "MacOS Browser Applet Installed Plugin",
+             "RegExs": [
+                 ".*/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/.*"
+             ]
+        },
+        {
+             "Name": "Adobe Animate",
+             "RegExs": [
+                 ".*(?:[Aa]pplications)?[/\\\\][Aa]dobe(?:\\s)?[Aa]nimate(?:\\s)[0-9.-_]+[/\\\\].*[/\\\\](?:jre|jdk).*"
+             ]
+        },
+        {
+             "Name": "Pearson VUE Browser Lock",
+             "RegExs": [
+                 ".*[Oo][Nn][Vv][Uu][Ee].*[/\\\\][Pp]earson(?:\\s)?[Vv][Uu][Ee](?:\\s)?[Bb]rowser.*"
+             ]
+        },
+        {
+             "Name": "GitHub - CodeQL",
+             "RegExs": [
+                 ".*[/\\\\][Cc][Oo][Dd][Ee][Qq][Ll][/\\\\].*"
+             ]
+        },
+        {
+             "Name": "Oracle - GraalVM",
+             "RegExs": [
+                 ".*[/\\\\][Gg][Rr][Aa]{2,}[Ll](?:\\s)*[Vv][Mm](?:[0-9_.-])+.*"
+             ]
+        },
+        {
+            "Name": "MaxxTrader Systems - Maxx Trader",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Mm]axx(?:\\s)?[Tt]rader(?:[Ss]ales)?[/\\\\].*"
+            ]
+        },
+        {
+            "Name": "MaxxTrader Systems (part of SGX Group) App",
+            "RegExs": [
+                ".*[/\\\\][Mm][Aa][Xx][Xx][/\\\\].*"
+            ]
+        },
+        {
+            "Name": "Murex - MX3",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Mm][Xx]3[/\\\\].*",
+                "^(?:[A-Za-z]):.*[Mm][Xx]3.*"
+            ]
+        },
+        {
+            "Name": "Salesforce/Tableau - Tableau Prep Builder",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Tt]ableau[/\\\\][Tt]ableau(?:\\s)?[Pp]rep(?:\\s)[Bb]uilder.*",
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*(?:[Tt]ableau.*[/\\\\])+.*"
+            ]
+        },
+        {
+            "Name": "Sybase RDBMS",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*(?:[Ss][Yy][Bb][Aa][Ss][Ee].*[/\\\\])+.*",
+		"^(?:[a-zA-Z]\\:)?[/\\\\].+[0-9][0-9]?([abcgei]|ai).*(?:[Gg][Rr][Ii][Dd].+)?.*"
+            ]
+        },
+        {
+            "Name": "DBeaver Corporation - DBeaver (CE or PRO)",
+            "RegExs": [
+                ".*[Dd][Bb]eaver.*"
+            ]
+        },
+        {
+            "Name": "SAS Institute Inc - SAS",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*(?:SAS.*)+.*"
+            ]
+        },
+        {
+            "Name": "SAP",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*(?:SAP\\s.*)+.*"
+            ]
+        },
+        {
+            "Name": "OWS",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*(?:[Oo]pen[Ww]eb[Ss]tart.*)+.*"
+            ]
+        },
+        {
+            "Name": "Sober Lemur S.r.l. - PDF Split and Merge (PDFsam)",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Pp][Dd][Ff][Ss]am(?:\\s[Bb]asic)?[/\\\\].*"
+            ]
+        },
+        {
+            "Name": "MaxxTrader",
+            "RegExs": [
+                "^[A-Za-z]:.*[/\\\\].*[Mm][Aa][Xx][Xx][Tt][Rr][Aa][Dd][Ee][Rr].*"
+            ]
+        },
+        {
+            "Name": "Australian Prudential Regulation Authority (APRA) - Direct to APRA (D2A)",
+            "RegExs": [
+                ".*[/\\\\][Pp]rogram(?:\\s)?(?:[Ff]iles|[Dd]ata)(?:\\s\\(x86\\))?[/\\\\].*[Dd]2[Aa][/\\\\].*",
+                "^[A-Za-z]:.*[/\\\\][Dd]2[Aa].*"
+            ]
+        },
+        {
+            "Name": "Microsoft - SCCM Staging Folder (Packed Product)",
+            "RegExs": [
+                "^[A-Za-z]:\\\\[Ww]indows\\\\[Cc]{2}mcache\\\\.*"
+            ]
+        },
+        {
+            "Name": "Neo4J",
+            "RegExs": [
+                ".*[/\\\\][Nn][Ee][Oo]4[Jj]\\s?.*"
+            ]
+        },
+        {
+            "Name": "Eclipse Foundation - Eclipse",
+            "RegExs": [
+                ".*[/\\\\][Ee][Cc][Ll][Ii][Pp][Ss][Ee]\\s?.*"
+            ]
+        },
+        {
+            "Name": "JetBrains IntelliJ (IDEA)",
+            "RegExs": [
+                "^[A-Za-z]:[/\\\\][Pp]rogram(?:Data|\\sFiles).*[/\\\\][Jj]et[Bb]rains.*[/\\\\](?:[Ii]ntelli[Jj]|[Ii][Dd][Ee][Aa])(?:[/\\\\].*)?",
+                ".*[/\\\\][Ii][Nn][Tt][Ee][Ll]{2}[Jj]\\s?.*"
+            ]
+        },
+        {
+            "Name": "Oracle - Middleware (Fusion / WebLogic)",
+            "RegExs": [
+                ".+(?:[Oo][Rr][Aa]([Cc][Ll][Ee])?.*)*(?:[Aa][Gg][Ee][Nn][Tt]|[Mm][Ii][Dd]{2}[Ll][Ee][Ww][Aa][Rr][Ee]).*",
+                ".+[Oo][Rr][Aa][Cc][Ll][Ee][Ff][Mm][Ww].*"
+            ]
+        }, 
+        {
+            "Name": "iReasoning - MIB Browser (Garbage/Noise)",
+            "Regexs": [
+                ".+[Ii][Rr][Ee][Aa][Ss][Oo][Nn][Ii][Nn][Gg].+[Mm][Ii][Bb]{2}[Rr][Oo][Ww][Ss][Ee][Rr].*"
+            ]
+        },
+        {
+            "Name": "IBM - Tivoli",
+            "RegExs": [
+                ".+[Ii][Bb][Mm].*[Tt][Ii][Vv][Oo][Ll][Ii].*",
+                ".+(?:[Ii][Bb][Mm])?.*[Ii][Tt][Mm].+",
+                ".+(?:[Ii][Bb][Mm])?.*[Oo][Mm][Nn][Ii][Bb][Uu][Ss].+"
+            ]
+        }
+    ]
+}

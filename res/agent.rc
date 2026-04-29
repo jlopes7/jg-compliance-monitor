@@ -1,0 +1,9 @@
+// agent.rc
+
+#include <windows.h>
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+IDI_APP_ICON ICON "agent.ico"
+
+//1 11 "MSG00409.bin"

@@ -1,0 +1,4 @@
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\EventLog\Application\JGComplianceAgent
+
+EventMessageFile = C:\Dev\jg-compliance-monitor\debug-dist\jgcomp-agent.exe
+TypesSupported   = 7
