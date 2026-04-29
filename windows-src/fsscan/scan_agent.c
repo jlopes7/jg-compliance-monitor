@@ -3,6 +3,9 @@
 //
 
 #include "windows/scan/scan_agent.h"
+
+#include <math.h>
+
 #include "windows/scan/search_fs.h"
 #include "windows/service/jvm_worker.h"
 
@@ -25,15 +28,23 @@ static BOOL fs_scan_match_callback (
         return TRUE;
     }
 
+
     // We need to sync the JVM detail processing between the many worker threads
     EnterCriticalSection(&PTR(*system_details).jvm_lock);
-    rc = jvm_worker_run(system_details, full_path);
-    LeaveCriticalSection(&PTR(*system_details).jvm_lock);
 
+    // Let's check if the path is a valid discovery or not
+    if ( !jvm_verify_valid_installpath(full_path, PTR(*system_details).stop_event) ) {
+        logmsg(LOGGING_WARN, L"[FSSCAN] The JVM installation is part of another Java installation (i.e., JRE within the JDK): %ls . SKIPPING", full_path);
+        goto cleanup;
+    }
+
+    rc = jvm_worker_run(system_details, full_path, PTR(*system_details).stop_event);
     if ( !_IS_SUCCESS(rc) ) {
         logmsg(LOGGING_ERROR, L"[FSSCAN] Failed to parse and populate the JVM data for: %ls. Code: %d", full_path, rc);
     }
 
+cleanup:
+    LeaveCriticalSection(&PTR(*system_details).jvm_lock);
     return TRUE;
 }
 
@@ -63,6 +74,8 @@ static BOOL fs_scan_run_once(HANDLE stop_event, SYSTEM_DETAILS *sysdetails) {
     options.fixed_drives_only = TRUE;
     options.stop_on_first_match = FALSE;
     options.on_match = fs_scan_match_callback;
+
+    PTR(*sysdetails).stop_event = stop_event;
     options.user_ctx = sysdetails;
 
     logmsg(LOGGING_NORMAL, L"[FSSCAN] Running filesystem scan for: %ls", options.target_name);

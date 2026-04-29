@@ -5,6 +5,7 @@
 #include "utils.h"
 #include "windows/config.h"
 #include "windows/logging.h"
+#include "windows/winreg_config.h"
 
 static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWSTR productName, size_t productNameCch) {
     size_t local_counter = 0;
@@ -61,6 +62,20 @@ static BOOL free_jvm_details(JVM_DETAILS jvm) {
     free((void *)PTR(jvm).env_javahome_installpath);
     free((void *)PTR(jvm).env_javahome_version);
     free((void *)PTR(jvm).product_name);
+
+    if ( PTR(jvm).product_info ) {
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->contact);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->display_name);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->display_version);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->install_date);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->publisher);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->tel_help);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->uninstall_instr);
+        HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->url);
+
+        HeapFree(GetProcessHeap(), 0, PTR(jvm).product_info);
+        PTR(jvm).product_info = NULL;
+    }
 
     return HeapFree(GetProcessHeap(), 0, jvm);
 }
@@ -173,6 +188,7 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
     JVM_DETAILS *new_list;
     DWORD new_capacity;
     JVM_DETAILS item;
+    PRODUCT_INFO product_info = NULL;
 
     errorcode_t result;
 
@@ -228,11 +244,27 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
      * LOAD THE PRODUCT DETAILS
      * -------------------------
      */
-    result = parse_model_jvm_product(config, jvmPath, product_loc, _LPWLEN(product_loc));
-    if ( !_IS_SUCCESS(result) ) {
-        logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse product. RC: %d", result);
+    result = parse_product_info(jvmPath, &product_info, PTR(*sysdetails).stop_event);
+    if ( IS_REG_NOTFOUND(result) ) {
+        result = parse_model_jvm_product(config, jvmPath, product_loc, _LPWLEN(product_loc));
+        if ( !_IS_SUCCESS(result) ) {
+            logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse product. RC: %d", result);
+        }
+        PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]->product_name = _wcsdup(product_loc);
+
+        // Product info manual configuration
+        PTR(product_info).display_name    = _wcsdup(product_loc);
+        PTR(product_info).contact         = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).display_version = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).install_date    = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).publisher       = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).tel_help        = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).uninstall_instr = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).url             = UNDEFINED_ATTRIBUTE;
     }
-    PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]->product_name = _wcsdup(product_loc);
+    else {
+        PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]->product_name = _wcsdup(PTR(product_info).display_name);
+    }
 
     // TODO: Continue processing the JVM
 
@@ -242,10 +274,14 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
     return ST_CODE_SUCCESS;
 }
 
-errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData) {
+errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData, HANDLE stop_event) {
     CONFIG config;
     LPCWSTR jvmPath;
     errorcode_t result;
+
+    if (WaitForSingleObject(stop_event, 0) == WAIT_OBJECT_0) {
+        return ST_CODE_SUCCESS;
+    }
 
     if (!sysdetails || !lpData) {
         logmsg(LOGGING_ERROR, L"-- parse_model: NULL arguments");
@@ -265,6 +301,33 @@ errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData) {
     if ( !_IS_SUCCESS(result) ) {
         logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to append JVM instance: %ls. RC: %d", jvmPath, result);
     }
+
+    return ST_CODE_SUCCESS;
+}
+
+errorcode_t parse_product_info(LPCWSTR install_path, PRODUCT_INFO *product, HANDLE stop_event) {
+    errorcode_t rc;
+
+    if (!install_path || !product) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    // Allocates the product structure
+    PTR(product) = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(product_details_t));
+
+    rc = read_uninstall_product_by_install_location(install_path, PTR(product), stop_event);
+    if (!_IS_SUCCESS(rc)) {
+        logmsg(LOGGING_WARN,
+               L"[MODEL PARSER] No uninstall registry product matched install path: %ls",
+               install_path);
+        return rc;
+    }
+
+    logmsg(LOGGING_NORMAL,
+           L"[MODEL PARSER] Registry product matched. DisplayName=%ls Version=%ls Publisher=%ls",
+           PTR(product)->display_name ?     PTR(product)->display_name : L"",
+           PTR(product)->display_version ?  PTR(product)->display_version : L"",
+           PTR(product)->publisher ?        PTR(product)->publisher : L"");
 
     return ST_CODE_SUCCESS;
 }

@@ -31,6 +31,21 @@ typedef struct _pattern_model {
 
 typedef pattern_model_t *PATTERN_MODEL;
 
+typedef struct _product_details {
+    LPCWSTR contact;
+    LPCWSTR display_name;
+    LPCWSTR display_version;
+    LPCWSTR tel_help;
+    LPCWSTR install_date;
+    LPCWSTR publisher;
+    uint8_t major_version;
+    uint8_t minor_version;
+    LPCWSTR url;
+    LPCWSTR uninstall_instr;
+} product_details_t;
+
+typedef product_details_t *PRODUCT_INFO;
+
 typedef struct _jvm_details {
     LPCWSTR installation_path;
     LPCWSTR publisher;
@@ -47,6 +62,7 @@ typedef struct _jvm_details {
     LPCWSTR env_javahome_version;
 
     LPCWSTR product_name;
+    PRODUCT_INFO product_info;
 
     BOOL is_jdk;
     BOOL is_jre;
@@ -73,6 +89,8 @@ typedef struct _system_details {
     DWORD jvm_count;
     DWORD jvm_capacity;
     CRITICAL_SECTION jvm_lock;
+
+    HANDLE stop_event;
 } system_details_t;
 typedef system_details_t *SYSTEM_DETAILS;
 
@@ -84,7 +102,8 @@ typedef struct _init_model_config {
 typedef init_model_config_t *INIT_MODEL_CONFIG;
 
 errorcode_t parse_model_system(SYSTEM_DETAILS *sysdetails);
-errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData);
+errorcode_t parse_product_info(LPCWSTR install_path, PRODUCT_INFO *product, HANDLE stop_event);
+errorcode_t jvm_parse_model(SYSTEM_DETAILS sysdetails, LPVOID lpData, HANDLE stop_event);
 errorcode_t clean_jvm_data(SYSTEM_DETAILS *sysdetails);
 
 #endif //JG_COMPLIANCE_MONITOR_JVM_MDL_H

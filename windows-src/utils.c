@@ -162,6 +162,67 @@ LPWSTR _wstrdup(LPCWSTR src) {
     return dst;
 }
 
+BOOL fs_resource_exists(LPCWSTR path, path_type_t type) {
+    DWORD attrs;
+
+    if (path == NULL || path[0] == L'\0') {
+        return FALSE;
+    }
+
+    attrs = GetFileAttributesW(path);
+
+    if (attrs == INVALID_FILE_ATTRIBUTES) {
+        return FALSE;
+    }
+
+    switch (type) {
+        case CONTAINER:
+            return (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+        case LEAF:
+            return (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
+
+        case UNIDENTIFIED:
+        default:
+            return TRUE;
+    }
+}
+
+BOOL fs_join_path(LPCWSTR basedir, LPCWSTR res, LPWSTR buffer, size_t buffer_cch) {
+    size_t len;
+
+    if (basedir == NULL || res == NULL || buffer == NULL || buffer_cch == 0) {
+        return FALSE;
+    }
+
+    buffer[0] = L'\0';
+
+    len = wcslen(basedir);
+
+    if (len == 0 || res[0] == L'\0') {
+        return FALSE;
+    }
+
+    if (basedir[len - 1] == PATH_SEPARATOR[0]) {
+        return swprintf_s(
+            buffer,
+            buffer_cch,
+            L"%ls%ls",
+            basedir,
+            res
+        ) >= 0;
+    }
+
+    return swprintf_s(
+        buffer,
+        buffer_cch,
+        L"%ls%ls%ls",
+        basedir,
+        PATH_SEPARATOR,
+        res
+    ) >= 0;
+}
+
 DWORD get_default_worker_count(void) {
     SYSTEM_INFO si;
 
@@ -175,23 +236,23 @@ DWORD get_default_worker_count(void) {
 }
 
 errorcode_t retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level) {
-    wchar_t temp_path[MAXPATHLEN];
+    wchar_t temp_path[MAX_PATH];
     wchar_t *last_sep;
     uint8_t i;
 
-    if (filepath == NULL || dir == NULL || level <= 0) {
+    if (filepath == NULL || dir == NULL || level == 0) {
         return ST_CODE_INVALID_PARAM;
     }
 
+    dir[0] = L'\0';
+
     if (filepath[0] == L'\0') {
-        dir[0] = L'\0';
         return ST_CODE_INVALID_PATH;
     }
 
     ZeroMemory(temp_path, sizeof(temp_path));
 
-    if (wcsncpy_s(temp_path, _LPWLEN(temp_path), filepath, _TRUNCATE) != 0) {
-        dir[0] = L'\0';
+    if (wcscpy_s(temp_path, _LPWLEN(temp_path), filepath) != 0) {
         return ST_CODE_BUFFER_TOO_SMALL;
     }
 
@@ -203,28 +264,55 @@ errorcode_t retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level) {
             return ST_CODE_INVALID_PATH;
         }
 
-        /*
-         * Stop before removing the drive root, e.g. C:\
-         */
-        if (last_sep == temp_path + 2 && temp_path[1] == L':') {
-            if (i + 1 < level) {
-                dir[0] = L'\0';
-                return ST_CODE_INVALID_PATH;
-            }
-
-            *last_sep = EMPTY_CHAR;
-            break;
-        }
-
         *last_sep = EMPTY_CHAR;
     }
 
-    if (wcscpy_s(dir, MAXPATHLEN, temp_path) != 0) {
+    if (wcscpy_s(dir, MAX_PATH, temp_path) != 0) {
         dir[0] = L'\0';
         return ST_CODE_BUFFER_TOO_SMALL;
     }
 
     return ST_CODE_SUCCESS;
+}
+
+BOOL fs_contains_signature(LPCWSTR path, LPCWSTR pattern) {
+    wchar_t temp[MAX_PATH];
+    wchar_t *context = NULL;
+    wchar_t *token;
+
+    if (path == NULL || pattern == NULL) {
+        return FALSE;
+    }
+
+    if (path[0] == L'\0' || pattern[0] == L'\0') {
+        return FALSE;
+    }
+
+    /*
+     * Pattern must be a simple path-part signature.
+     * It cannot contain path separators.
+     */
+    if (wcschr(pattern, L'\\') != NULL || wcschr(pattern, L'/') != NULL) {
+        return FALSE;
+    }
+
+    ZeroMemory(temp, sizeof(temp));
+
+    if (wcscpy_s(temp, _LPWLEN(temp), path) != 0) {
+        return FALSE;
+    }
+
+    token = wcstok_s(temp, PATH_SEPARATOR, &context);
+
+    while (token != NULL) {
+        if (wcsstr(token, pattern) != NULL) {
+            return TRUE;
+        }
+
+        token = wcstok_s(NULL, PATH_SEPARATOR, &context);
+    }
+
+    return FALSE;
 }
 
 errorcode_t ends_with(LPCWSTR base, LPCWSTR comp, BOOL *result, size_t len) {

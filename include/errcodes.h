@@ -44,6 +44,7 @@ typedef unsigned int errorcode_t;
 #define ST_CODE_FAILED_PARSE_JSON           70032   /* Message format is wrong, failed to parse the JSON content */
 #define ST_CODE_FAILED_TO_RELEASE_RES       70033   /* Failed to release resources */
 #define ST_CODE_FAILED_PARSE_MODEL          70034   /* Fail to parse the model details during the process execution */
+#define ST_CODE_REGKEY_NOT_FOUND            70035   /* The registry key was not found */
 
 
 #endif //JG_COMPLIANCE_MONITOR_ERRCODES_H

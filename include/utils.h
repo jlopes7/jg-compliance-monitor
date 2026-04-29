@@ -31,6 +31,8 @@
 #define MAX_LOG_FILE    0x00000400 /*1K*/
 
 
+#define UNDEFINED_ATTRIBUTE     L"Unknown Value"
+
 #if !defined (MAXPATHLEN)
 #   define MAXPATHLEN	MAX_LOG_FILE
 #endif
@@ -84,9 +86,18 @@
                           (((v) << 8)  & 0x00FF0000) | \
                           (((v) << 24) & 0xFF000000) )
 
+typedef enum path_type {
+    CONTAINER,
+    LEAF,
+    UNIDENTIFIED
+} path_type_t;
+
 #if defined(WIN32)
 errorcode_t split_trimmed_list(LPCWSTR input, LPWSTR **list_out, size_t *count_out);
 errorcode_t get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size);
+BOOL fs_resource_exists(LPCWSTR path, path_type_t type);
+BOOL fs_join_path(LPCWSTR basedir, LPCWSTR res, LPWSTR buffer, size_t buffer_cch);
+BOOL fs_contains_signature(LPCWSTR path, LPCWSTR pattern);
 
 errorcode_t retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level);
 errorcode_t ends_with(LPCWSTR base, LPCWSTR comp, BOOL *result, size_t len);
