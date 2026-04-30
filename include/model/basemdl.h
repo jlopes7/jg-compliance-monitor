@@ -13,6 +13,19 @@
 #define ENV_VAR_JAVAHOME        L"JAVA_HOME"
 #define ENV_VAR_PATH            L"PATH"
 
+#define LIC_TYPE_BCLA           L"BCLA"
+#define LIC_TYPE_BCLAWEXTSUP    L"BCLA w/ Extended Support"
+#define LIC_TYPE_OTNLA          L"OTNLA"
+#define LIC_TYPE_NFTC           L"NFTC"
+#define LIC_TYPE_OJDK           L"GPLv2 w/ CPE"
+#define LIC_TYPE_UNKNOWN        L"Unknown License"
+
+#define JVM_RELEASE_PROP_JAVA_VERSION           L"JAVA_VERSION"
+#define JVM_RELEASE_PROP_JAVA_RUNTIME_VERSION   L"JAVA_RUNTIME_VERSION"
+#define JVM_RELEASE_PROP_BUILD_TYPE             L"BUILD_TYPE"
+
+#define GPLV2_FIRST_LINE_DEF    L"The GNU General Public License (GPL)"
+
 typedef LPCWSTR *PATTERN_LIST;
 
 typedef struct _pattern_entry {
@@ -50,11 +63,14 @@ typedef struct _jvm_details {
     LPCWSTR installation_path;
     LPCWSTR publisher;
     LPCWSTR license_type;
+    LPCWSTR legal_copyright;
 
     LPCWSTR fullversion_jdk;
     LPCWSTR fullversion_win;
-    uint8_t major_version;
-    uint8_t minor_version;
+    LPCWSTR runtime_version;
+    LPCWSTR build_type;
+    DWORD major_version;
+    DWORD minor_version;
 
     LPCWSTR env_path_installpath;
     LPCWSTR env_path_version;

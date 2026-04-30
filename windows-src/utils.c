@@ -235,7 +235,7 @@ DWORD get_default_worker_count(void) {
     return si.dwNumberOfProcessors;
 }
 
-errorcode_t retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level) {
+errorcode_t fs_retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level) {
     wchar_t temp_path[MAX_PATH];
     wchar_t *last_sep;
     uint8_t i;
@@ -693,4 +693,171 @@ LPWSTR heap_wcsdup(LPCWSTR src) {
 
     wcscpy_s(dst, len + 1, src);
     return dst;
+}
+
+BOOL fs_compare_line_in_file(LPCWSTR filepath, LPCWSTR comparator, DWORD line_number) {
+    FILE *fp = NULL;
+    wchar_t line[BUFFER_SIZE];
+    wchar_t last_line[BUFFER_SIZE];
+    DWORD current_line = 0;
+    errno_t err;
+
+    if (!filepath || !comparator) {
+        return FALSE;
+    }
+
+    line[0] = L'\0';
+    last_line[0] = L'\0';
+
+    err = _wfopen_s(&fp, filepath, L"r, ccs=UTF-8");
+    if (err != 0 || fp == NULL) {
+        return FALSE;
+    }
+
+    while (fgetws(line, _LPWLEN(line), fp)) {
+        current_line++;
+
+        line[wcscspn(line, LINE_BREAK)] = L'\0';
+        wcsncpy_s(last_line, _LPWLEN(last_line), line, _TRUNCATE);
+
+        if (current_line == line_number) {
+            fclose(fp);
+            return wcscmp(line, comparator) == 0;
+        }
+    }
+
+    fclose(fp);
+
+    /*
+     * If requested line does not exist, compare with last file line.
+     * Empty file -> last_line remains empty.
+     */
+    return _wcsicmp(last_line, comparator) == 0;
+}
+
+errorcode_t init_file_prop_read(LPCWSTR file, FILE_PROP_READER *reader) {
+    FILE_PROP_READER local_reader;
+    errno_t err;
+
+    if (!file || !reader) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    *reader = NULL;
+
+    if (!fs_resource_exists(file, LEAF)) {
+        return ST_CODE_PROPFILE_DOESNTEXIST;
+    }
+
+    local_reader = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(file_prop_reader_t));
+    if (!local_reader) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
+
+    err = _wfopen_s(&PTR(local_reader).fp, file, L"r, ccs=UTF-8");
+    if (err != 0 || PTR(local_reader).fp == NULL) {
+        HeapFree(GetProcessHeap(), 0, local_reader);
+        return ST_CODE_IO_OPEN_FAILED;
+    }
+
+    PTR(local_reader).file = file;
+    *reader = local_reader;
+
+    return ST_CODE_SUCCESS;
+}
+
+errorcode_t end_file_prop_read(FILE_PROP_READER reader) {
+    if (!reader) {
+        return ST_CODE_SUCCESS;
+    }
+
+    if (reader->fp) {
+        fclose(PTR(reader).fp);
+        PTR(reader).fp = NULL;
+    }
+
+    HeapFree(GetProcessHeap(), 0, reader);
+
+    return ST_CODE_SUCCESS;
+}
+
+static errorcode_t get_file_prop_val_from_reader(
+    FILE_PROP_READER reader,
+    LPCWSTR propname,
+    LPWSTR buffer,
+    DWORD buffer_cch
+) {
+    wchar_t line[BUFFER_SIZE];
+
+    if (!reader || !PTR(reader).fp || !propname || !buffer || buffer_cch == 0) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    buffer[0] = L'\0';
+
+    rewind(PTR(reader).fp);
+
+    while (fgetws(line, _LPWLEN(line), reader->fp)) {
+        wchar_t *p;
+        wchar_t *eq;
+        wchar_t *key;
+        wchar_t *value;
+        size_t value_len;
+
+        line[wcscspn(line, L"\r\n")] = L'\0';
+
+        p = trim_in_place(line);
+
+        if (*p == L'\0' || *p == L'#' || *p == L';') {
+            continue;
+        }
+
+        eq = wcschr(p, L'=');
+        if (!eq) {
+            continue;
+        }
+
+        *eq = L'\0';
+
+        key = trim_in_place(p);
+        value = trim_in_place(eq + 1);
+
+        if (wcscmp(key, propname) != 0) {
+            continue;
+        }
+
+        value_len = wcslen(value);
+
+        if (value_len >= 2 && value[0] == L'"' && value[value_len - 1] == L'"') {
+            value[value_len - 1] = L'\0';
+            value++;
+        }
+
+        if (wcslen(value) + 1 > buffer_cch) {
+            return ST_CODE_BUFFER_TOO_SMALL;
+        }
+
+        wcsncpy_s(buffer, buffer_cch, value, _TRUNCATE);
+        return ST_CODE_SUCCESS;
+    }
+
+    return ST_CODE_PROP_NOT_FOUND;
+}
+
+errorcode_t get_file_prop_val(
+    LPCWSTR propname,
+    LPWSTR buffer,
+    DWORD buffer_cch,
+    FILE_PROP_READER file
+) {
+    if (!file) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    return get_file_prop_val_from_reader(
+        file,
+        propname,
+        buffer,
+        buffer_cch
+    );
 }

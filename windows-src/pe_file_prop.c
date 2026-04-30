@@ -63,6 +63,56 @@ errorcode_t pe_open(LPCWSTR filepath, PE_FILE *pe) {
     return ST_CODE_SUCCESS;
 }
 
+errorcode_t pe_get_prop_dword(
+    PE_FILE pe,
+    LPCWSTR prop_name,
+    DWORD *value
+) {
+    VS_FIXEDFILEINFO *info = NULL;
+    UINT len = 0;
+
+    if (!pe || !prop_name || !value) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    *value = 0;
+
+    if (!VerQueryValueW(
+            PTR(pe).version_block,
+            L"\\",
+            (LPVOID *)&info,
+            &len
+        ) || !info || len < sizeof(VS_FIXEDFILEINFO)) {
+        return ST_CODE_FAILED_OPERATION;
+        }
+
+    if (info->dwSignature != VS_FFI_SIGNATURE) {
+        return ST_CODE_FAILED_OPERATION;
+    }
+
+    if (wcscmp(prop_name, PE_PROP_MAJORVERSION) == 0) {
+        *value = HIWORD(info->dwFileVersionMS);
+        return ST_CODE_SUCCESS;
+    }
+
+    if (wcscmp(prop_name, PE_PROP_MINORVERSION) == 0) {
+        *value = LOWORD(info->dwFileVersionMS);
+        return ST_CODE_SUCCESS;
+    }
+
+    if (wcscmp(prop_name, PE_PROP_BUILDVERSION) == 0) {
+        *value = HIWORD(info->dwFileVersionLS);
+        return ST_CODE_SUCCESS;
+    }
+
+    if (wcscmp(prop_name, PE_PROP_REVISIONVERSION) == 0) {
+        *value = LOWORD(info->dwFileVersionLS);
+        return ST_CODE_SUCCESS;
+    }
+
+    return ST_CODE_PROP_NOT_FOUND;
+}
+
 errorcode_t pe_get_prop(PE_FILE pe, LPCWSTR prop_name, LPWSTR value, size_t value_cch) {
     WCHAR query[256];
     LPWSTR prop_value = NULL;

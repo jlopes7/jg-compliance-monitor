@@ -92,19 +92,29 @@ typedef enum path_type {
     UNIDENTIFIED
 } path_type_t;
 
+typedef struct _file_prop_reader_t {
+    FILE *fp;
+    LPCWSTR file;
+} file_prop_reader_t;
+typedef file_prop_reader_t *FILE_PROP_READER;
+
 #if defined(WIN32)
 errorcode_t split_trimmed_list(LPCWSTR input, LPWSTR **list_out, size_t *count_out);
 errorcode_t get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size);
+errorcode_t fs_retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level);
 BOOL fs_resource_exists(LPCWSTR path, path_type_t type);
 BOOL fs_join_path(LPCWSTR basedir, LPCWSTR res, LPWSTR buffer, size_t buffer_cch);
 BOOL fs_contains_signature(LPCWSTR path, LPCWSTR pattern);
+BOOL fs_compare_line_in_file(LPCWSTR filepath, LPCWSTR comparator, DWORD line_number);
 
-errorcode_t retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level);
 errorcode_t ends_with(LPCWSTR base, LPCWSTR comp, BOOL *result, size_t len);
 
 LPWSTR _wstrdup(LPCWSTR src);
+
 LPWSTR heap_wcsdup(LPCWSTR src);
+
 LPWSTR utf8_to_wide_dup(const char *src);
+
 DWORD get_default_worker_count(void);
 
 errorcode_t regex_match(LPCWSTR input, LPCWSTR pattern, BOOL *matched);
@@ -119,6 +129,10 @@ errorcode_t get_os_version(LPWSTR output, DWORD output_cch);
 errorcode_t get_logical_core_count(DWORD *vcpu_count);
 errorcode_t get_physical_core_count(DWORD *physical_core_count);
 errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value);
+
+errorcode_t init_file_prop_read(LPCWSTR file, FILE_PROP_READER *reader);
+errorcode_t get_file_prop_val(LPCWSTR propname, LPWSTR buffer, DWORD buffer_cch, FILE_PROP_READER reader);
+errorcode_t end_file_prop_read(FILE_PROP_READER reader);
 #endif
 
 #endif //JG_COMPLIANCE_MONITOR_UTILS_H

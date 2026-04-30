@@ -5,7 +5,245 @@
 #include "utils.h"
 #include "windows/config.h"
 #include "windows/logging.h"
+#include "windows/pe_file_prop.h"
 #include "windows/winreg_config.h"
+
+static errorcode_t parse_jvm_license_type(JVM_DETAILS jvm) {
+    errorcode_t result;
+    DWORD major_version, minor_version;
+    wchar_t jvm_base_path[MAX_PATH],
+            jvm_lic_path[MAX_PATH],
+            jvm_jdk_path[MAX_PATH];
+    BOOL license_already_parsed = FALSE;
+
+    if (!jvm) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    major_version = PTR(jvm).major_version;
+    minor_version = PTR(jvm).minor_version;
+    if (minor_version == 0 || major_version == 0) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    ZeroMemory(jvm_base_path, sizeof(jvm_base_path));
+    ZeroMemory(jvm_lic_path, sizeof(jvm_lic_path));
+    ZeroMemory(jvm_jdk_path, sizeof(jvm_jdk_path));
+
+    // Try to resolve the license from the license file
+    result = fs_retrieve_directory(PTR(jvm).installation_path, jvm_base_path, 2);
+    if ( !_IS_SUCCESS(result) ) {
+        return result;
+    }
+    if ( fs_join_path(jvm_base_path, L"LICENSE", jvm_jdk_path, MAX_PATH) ) {
+        if ( fs_resource_exists(jvm_jdk_path, LEAF) ) {
+            fs_join_path(jvm_base_path, L"LICENSE", jvm_lic_path, MAX_PATH);
+        }
+        else {
+            fs_join_path(jvm_base_path, L"legal\\java.base\\LICENSE", jvm_lic_path, MAX_PATH);
+        }
+
+        if ( fs_resource_exists(jvm_lic_path, LEAF) ) {
+            if ( fs_compare_line_in_file(jvm_lic_path, GPLV2_FIRST_LINE_DEF, 1) ) {
+                license_already_parsed = TRUE;
+
+                PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OJDK);
+            }
+        }
+    }
+
+    // We will have to evaluate the major and minor versions
+    if ( !license_already_parsed ) {
+        if ( _wcsicmp(PTR(jvm).publisher, L"Oracle Corporation") == 0 ) {
+            if ( major_version <= 7 ) {
+                switch (major_version) {
+                    case 7:
+                        if ( minor_version <= 80 ) PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLA);
+                        else PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLAWEXTSUP);
+                        break;
+
+                    case 6:
+                        if ( minor_version <= 45 ) PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLA);
+                        else PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLAWEXTSUP);
+                        break;
+
+                    default:
+                        PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLA);
+                }
+            }
+            else if ( major_version == 8 ) {
+                if ( minor_version <= 202 ) PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLA);
+                else PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OTNLA);
+            }
+            else if ( major_version == 9 || major_version == 10 ) {
+                PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_BCLA);
+            }
+            else if ( major_version < 17 ) { // 11 ~ 16
+                PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OTNLA);
+            }
+            else {
+                if ( major_version == 17 ) {
+                    if ( minor_version <= 12 ) PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_NFTC);
+                    else PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OTNLA);
+                }
+                else {
+                    PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_NFTC);
+                }
+            }
+        }
+        else if ( _wcsicmp(PTR(jvm).publisher, UNDEFINED_ATTRIBUTE) == 0 ) {
+            PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_UNKNOWN);
+        }
+        else {
+            // GPL OJDK
+            PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OJDK);
+        }
+    }
+
+    return ST_CODE_SUCCESS;
+}
+
+static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
+    errorcode_t result;
+    PE_FILE pe_details = NULL;
+    FILE_PROP_READER prop_reader = NULL;
+
+    uint8_t back_counter = 2;
+    BOOL    found_release_file = FALSE;
+
+    DWORD   major_version = 0,
+            minor_version = 0;
+    wchar_t full_version[SMALL_BUFFER];
+    wchar_t publisher_comp[SMALL_BUFFER],
+            legal_copyright[SMALL_BUFFER];
+    wchar_t release_file_path[LOW_BUFFER_SIZE],
+            release_file_dir[LOW_BUFFER_SIZE];
+
+    if (!jvmPath || !jvm) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    ZeroMemory(publisher_comp, sizeof(publisher_comp));
+    ZeroMemory(legal_copyright, sizeof(legal_copyright));
+
+    result = pe_open(jvmPath, &pe_details);
+    if ( !_IS_SUCCESS(result) ) {
+        logmsg(LOGGING_WARN, L"[PE FILE DETAILS] Failed to retrieve the PE information for the JVM file given as parameter: %ls", jvmPath);
+        return result;
+    }
+
+    // FULL VERSION, MAJOR AND MINOR VERSIONS
+    result = pe_get_prop_dword(pe_details, PE_PROP_MAJORVERSION, &major_version);
+    if ( _IS_SUCCESS(result) ) {
+        PTR(jvm).major_version = major_version;
+    }
+    result = pe_get_prop_dword(pe_details, PE_PROP_MINORVERSION, &minor_version);
+    if ( _IS_SUCCESS(result) ) {
+        if ( minor_version == 0 ) {
+            pe_get_prop_dword(pe_details, PE_PROP_BUILDVERSION, &minor_version);
+        }
+
+        // Fix the trailing "0" after the end of windows version (anything higher than 700 would have a "0" attached to the minor)
+        if ( minor_version >= 700 && minor_version % 10 == 0 ) {
+            minor_version /= 10;
+        }
+        PTR(jvm).minor_version = minor_version;
+    }
+
+    result = pe_get_prop(pe_details, PE_PROP_COMPANY_NAME, publisher_comp, SMALL_BUFFER);
+    if ( _IS_SUCCESS(result) ) {
+        PTR(jvm).publisher = heap_wcsdup(publisher_comp);
+    }
+    else {
+        logmsg(LOGGING_WARN, L"[PE FILE DETAILS] Could not find or retrieve the value associated with the PE property: %ls. Error code: %d", PE_PROP_COMPANY_NAME, result);
+        PTR(jvm).publisher = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+    }
+
+    result = pe_get_prop(pe_details, PE_PROP_LEGAL_COPYRIGHT, legal_copyright, SMALL_BUFFER);
+    if ( _IS_SUCCESS(result) ) {
+        PTR(jvm).legal_copyright = heap_wcsdup(legal_copyright);
+    }
+    else {
+        logmsg(LOGGING_WARN, L"[PE FILE DETAILS] Could not find or retrieve the value associated with the PE property: %ls. Error code: %d", PE_PROP_LEGAL_COPYRIGHT, result);
+        PTR(jvm).legal_copyright = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+    }
+
+    result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, full_version, SMALL_BUFFER);
+    if ( _IS_SUCCESS(result) ) {
+        PTR(jvm).fullversion_win = heap_wcsdup(full_version);
+    }
+    else {
+        logmsg(LOGGING_WARN, L"[PE FILE DETAILS] Could not find or retrieve the value associated with the PE property: %ls. Error code: %d", PE_PROP_FILE_VERSION, result);
+        PTR(jvm).fullversion_win = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+    }
+
+    // Close the PE file format handle
+    pe_close(pe_details);
+
+
+    // Work the properties from the RELEASE file
+    for ( ; !found_release_file && back_counter < 4 /*Go up only 2 levels*/; back_counter++ ) {
+        ZeroMemory(release_file_path, sizeof(release_file_path));
+        ZeroMemory(release_file_dir, sizeof(release_file_dir));
+
+        result = fs_retrieve_directory(jvmPath, release_file_dir, back_counter);
+        if ( _IS_SUCCESS(result) ) {
+            if ( fs_join_path(release_file_dir, L"RELEASE", release_file_path, LOW_BUFFER_SIZE) ) {
+                found_release_file = fs_resource_exists(release_file_path, LEAF);
+            }
+        }
+    }
+    // Found the release file, let's start the read of the properties
+    if ( found_release_file ) {
+        result = init_file_prop_read(release_file_path, &prop_reader);
+        if ( _IS_SUCCESS(result) ) {
+            wchar_t java_version[LOW_BUFFER_SIZE],
+                    java_runtime_version[LOW_BUFFER_SIZE],
+                    build_type[LOW_BUFFER_SIZE];
+
+            ZeroMemory(java_version, sizeof(java_version));
+            ZeroMemory(java_runtime_version, sizeof(java_runtime_version));
+            ZeroMemory(build_type, sizeof(build_type));
+
+            result = get_file_prop_val(JVM_RELEASE_PROP_JAVA_VERSION, java_version, LOW_BUFFER_SIZE, prop_reader);
+            if ( _IS_SUCCESS(result) ) {
+                PTR(jvm).fullversion_jdk = heap_wcsdup(java_version);
+            }
+            else {
+                logmsg(LOGGING_WARN, L"[JVM PROPS] Could not find or retrieve the value associated with the property: %ls. Error code: %d", JVM_RELEASE_PROP_JAVA_VERSION, result);
+                PTR(jvm).fullversion_jdk = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+            }
+
+            result = get_file_prop_val(JVM_RELEASE_PROP_JAVA_RUNTIME_VERSION, java_runtime_version, LOW_BUFFER_SIZE, prop_reader);
+            if ( _IS_SUCCESS(result) ) {
+                PTR(jvm).runtime_version = heap_wcsdup(java_runtime_version);
+            }
+            else {
+                logmsg(LOGGING_WARN, L"[JVM PROPS] Could not find or retrieve the value associated with the property: %ls. Error code: %d", JVM_RELEASE_PROP_JAVA_RUNTIME_VERSION, result);
+                PTR(jvm).runtime_version = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+            }
+
+            result = get_file_prop_val(JVM_RELEASE_PROP_BUILD_TYPE, build_type, LOW_BUFFER_SIZE, prop_reader);
+            if ( _IS_SUCCESS(result) ) {
+                PTR(jvm).build_type = heap_wcsdup(build_type);
+            }
+            else {
+                logmsg(LOGGING_WARN, L"[JVM PROPS] Could not find or retrieve the value associated with the property: %ls. Error code: %d", JVM_RELEASE_PROP_BUILD_TYPE, result);
+                PTR(jvm).build_type = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+            }
+
+            end_file_prop_read(prop_reader);
+        }
+    }
+    else {
+        logmsg(LOGGING_WARN, L"[JVM PROPS] The JVM release file could not be found. That means a few properties will not be filled for the JVM. The data maybe incomplete: (full_version_jdk, runtime_version and build_type)");
+        PTR(jvm).fullversion_jdk = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(jvm).runtime_version = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(jvm).build_type = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+    }
+
+    return ST_CODE_SUCCESS;
+}
 
 static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWSTR productName, size_t productNameCch) {
     size_t local_counter = 0;
@@ -52,16 +290,20 @@ static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWST
 static BOOL free_jvm_details(JVM_DETAILS jvm) {
     if (!jvm) return TRUE;
 
-    free((void *)PTR(jvm).installation_path);
-    free((void *)PTR(jvm).publisher);
-    free((void *)PTR(jvm).license_type);
-    free((void *)PTR(jvm).fullversion_jdk);
-    free((void *)PTR(jvm).fullversion_win);
-    free((void *)PTR(jvm).env_path_installpath);
-    free((void *)PTR(jvm).env_path_version);
-    free((void *)PTR(jvm).env_javahome_installpath);
-    free((void *)PTR(jvm).env_javahome_version);
-    free((void *)PTR(jvm).product_name);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_path_installpath);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_path_version);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_javahome_installpath);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_javahome_version);
+
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).installation_path);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).license_type);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).publisher);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_name);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).fullversion_jdk);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).fullversion_win);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).runtime_version);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).build_type);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).legal_copyright);
 
     if ( PTR(jvm).product_info ) {
         HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).product_info->contact);
@@ -82,7 +324,7 @@ static BOOL free_jvm_details(JVM_DETAILS jvm) {
 
 errorcode_t clean_jvm_data(SYSTEM_DETAILS *sysdetails) {
     DWORD counter = 0;
-    if (!PTR(sysdetails) || !PTR(*sysdetails).jvm ) {
+    if (!sysdetails || !*sysdetails || !PTR(*sysdetails).jvm) {
         return ST_CODE_INVALID_PARAM;
     }
 
@@ -169,11 +411,11 @@ errorcode_t parse_model_system(SYSTEM_DETAILS *sysdetails) {
         logmsg(LOGGING_WARN, L"Failed to retrieve either environment variables PATH or(and) JAVA_HOME. Maybe the JAVA_HOME variable is empty? Code: %d", result);
     }
 
-    PTR(*sysdetails).env_javahome = _wstrdup(env_javahome);
-    PTR(*sysdetails).env_path = _wstrdup(env_path);
+    PTR(*sysdetails).env_javahome = heap_wcsdup(env_javahome);
+    PTR(*sysdetails).env_path = heap_wcsdup(env_path);
 
     // Buffer counter and capacity
-    PTR(*sysdetails).local_user = L"NOT SUPPORTED AT CUR VERSION";
+    PTR(*sysdetails).local_user = heap_wcsdup(L"NOT SUPPORTED AT CUR VERSION");
     PTR(*sysdetails).jvm_capacity = LOW_BUFFER_SIZE;
     PTR(*sysdetails).jvm_count = 0;
 
@@ -234,11 +476,9 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
     if (!item) {
         return ST_CODE_MEMORY_ALLOCATION_FAILED;
     }
-    PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count] = item;
 
-    if (!PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]) {
-        return ST_CODE_MEMORY_ALLOCATION_FAILED;
-    }
+    // Copy the JVM installation path for the JVM definition
+    PTR(item).installation_path = heap_wcsdup(jvmPath);
 
     /*
      * LOAD THE PRODUCT DETAILS
@@ -250,24 +490,59 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
         if ( !_IS_SUCCESS(result) ) {
             logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse product. RC: %d", result);
         }
-        PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]->product_name = _wcsdup(product_loc);
+        PTR(item).product_name = heap_wcsdup(product_loc);
+
+        if ( product_info == NULL ) {
+            product_info = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(product_details_t));
+            if (!product_info) {
+                free_jvm_details(item);
+                return ST_CODE_MEMORY_ALLOCATION_FAILED;
+            }
+        }
 
         // Product info manual configuration
-        PTR(product_info).display_name    = _wcsdup(product_loc);
-        PTR(product_info).contact         = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).display_version = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).install_date    = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).publisher       = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).tel_help        = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).uninstall_instr = UNDEFINED_ATTRIBUTE;
-        PTR(product_info).url             = UNDEFINED_ATTRIBUTE;
+        PTR(product_info).display_name    = heap_wcsdup(product_loc);
+        PTR(product_info).contact         = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).display_version = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).install_date    = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).publisher       = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).tel_help        = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).uninstall_instr = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+        PTR(product_info).url             = heap_wcsdup(UNDEFINED_ATTRIBUTE);
+    }
+    else if (_IS_SUCCESS(result) && product_info) {
+        PTR(item).product_name = heap_wcsdup(PTR(product_info).display_name);
     }
     else {
-        PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]->product_name = _wcsdup(PTR(product_info).display_name);
+        free_jvm_details(item);
+        return result;
+    }
+    PTR(item).product_info = product_info;
+
+    /*
+     * LOAD THE PE AND RELEASE INFORMATION
+     * ------------------------------------
+     */
+    result = parse_jvm_pe_rel_model(jvmPath, item);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse the PE and RELEASE model for: %ls. RC: %d", jvmPath, result);
+    }
+
+    /*
+     * LOAD THE JVM LICENSE DETAILS
+     * ----------------------------
+     */
+    result = parse_jvm_license_type(item);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse the license information for the JVM: %ls. RC: %d", jvmPath, result);
     }
 
     // TODO: Continue processing the JVM
 
+    PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count] = item;
+    if (!PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count]) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
     // PLACE THE COUNTER TO THE NEXT ELEMENT !
     PTR(*sysdetails).jvm_count++;
 
@@ -314,12 +589,18 @@ errorcode_t parse_product_info(LPCWSTR install_path, PRODUCT_INFO *product, HAND
 
     // Allocates the product structure
     PTR(product) = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(product_details_t));
+    if (!PTR(product)) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
 
     rc = read_uninstall_product_by_install_location(install_path, PTR(product), stop_event);
     if (!_IS_SUCCESS(rc)) {
         logmsg(LOGGING_WARN,
                L"[MODEL PARSER] No uninstall registry product matched install path: %ls",
                install_path);
+        HeapFree(GetProcessHeap(), 0, (void*)PTR(product));
+        PTR(product) = NULL;
+
         return rc;
     }
 

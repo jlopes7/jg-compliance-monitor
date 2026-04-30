@@ -15,6 +15,10 @@
 #define PE_PROP_PRODUCT_NAME       L"ProductName"
 #define PE_PROP_PRODUCT_VERSION    L"ProductVersion"
 #define PE_PROP_LEGAL_COPYRIGHT    L"LegalCopyright"
+#define PE_PROP_MAJORVERSION       L"FileMajorPart"
+#define PE_PROP_MINORVERSION       L"FileMinorPart"
+#define PE_PROP_BUILDVERSION       L"FileBuildPart"
+#define PE_PROP_REVISIONVERSION    L"FilePrivatePart"
 
 typedef struct _pe_file_t {
     LPBYTE version_block;
@@ -33,6 +37,7 @@ typedef pe_file_t *PE_FILE;
 
 errorcode_t pe_open(LPCWSTR filepath, PE_FILE *pe);
 errorcode_t pe_get_prop(PE_FILE pe, LPCWSTR prop_name, LPWSTR value, size_t value_cch);
+errorcode_t pe_get_prop_dword(PE_FILE pe, LPCWSTR prop_name, DWORD *value);
 errorcode_t pe_close(PE_FILE pe);
 
 #endif //JG_COMPLIANCE_MONITOR_PE_FILE_PROP_H

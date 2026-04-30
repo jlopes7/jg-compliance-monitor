@@ -36,7 +36,7 @@ BOOL jvm_verify_valid_installpath(LPCWSTR jvmPath, HANDLE stop_event) {
     ZeroMemory(jvm_file_path, sizeof(jvm_file_path));
     ZeroMemory(newpath, sizeof(newpath));
 
-    retrieve_directory(jvmPath, newpath, 3); // From jdk1.8.0_351/jre/bin/java.exe, goes two levels, e.g., to jdk1.8.0_351/
+    fs_retrieve_directory(jvmPath, newpath, 3); // From jdk1.8.0_351/jre/bin/java.exe, goes two levels, e.g., to jdk1.8.0_351/
     if ( fs_join_path(newpath, L"jre\\bin\\java.exe", jvm_file_path, MAX_PATH) ) {
         result = !(fs_contains_signature(newpath, L"jdk") && fs_resource_exists(jvm_file_path, LEAF));
     }
