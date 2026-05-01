@@ -10,6 +10,11 @@
 
 #include "windows/db/agent_db.h"
 
+#define PUBLISHER_ORACLE_CORPORATION L"Oracle Corporation"
+
+#define JAVA_EXECUTABLE         L"java.exe"
+#define JAVAC_EXECUTABLE        L"javac.exe"
+
 #define ENV_VAR_JAVAHOME        L"JAVA_HOME"
 #define ENV_VAR_PATH            L"PATH"
 
@@ -25,6 +30,8 @@
 #define JVM_RELEASE_PROP_BUILD_TYPE             L"BUILD_TYPE"
 
 #define GPLV2_FIRST_LINE_DEF    L"The GNU General Public License (GPL)"
+
+#define _IS_ORACLE_CORP(ORG)    ( _wcsicmp((ORG), PUBLISHER_ORACLE_CORPORATION) == 0 )
 
 typedef LPCWSTR *PATTERN_LIST;
 
@@ -72,13 +79,9 @@ typedef struct _jvm_details {
     DWORD major_version;
     DWORD minor_version;
 
-    LPCWSTR env_path_installpath;
-    LPCWSTR env_path_version;
-    LPCWSTR env_javahome_installpath;
-    LPCWSTR env_javahome_version;
-
     LPCWSTR product_name;
     PRODUCT_INFO product_info;
+
 
     BOOL is_jdk;
     BOOL is_jre;
@@ -94,6 +97,12 @@ typedef struct _system_details {
 
     LPCWSTR env_path;
     LPCWSTR env_javahome;
+    LPCWSTR env_path_installpath;
+    LPCWSTR env_path_version;
+    LPCWSTR env_javahome_installpath;
+    LPCWSTR env_javahome_version;
+    BOOL is_env_path_broken;
+    BOOL is_env_javahome_broken;
 
     DWORD num_vcores;
     DWORD num_physical_cores;

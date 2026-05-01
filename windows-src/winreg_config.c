@@ -163,6 +163,42 @@ static DWORD read_registry_dword_ex(HKEY hKey, LPCWSTR value_name) {
     return value;
 }
 
+static LPWSTR format_registry_install_date(LPCWSTR install_date) {
+    LPWSTR output;
+    size_t i;
+
+    if (!install_date || wcslen(install_date) != 8) {
+        return NULL;
+    }
+
+    for (i = 0; i < 8; i++) {
+        if (!iswdigit(install_date[i])) {
+            return NULL;
+        }
+    }
+
+    output = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 11 * sizeof(wchar_t));
+    if (!output) {
+        return NULL;
+    }
+
+    swprintf_s(
+        output,
+        11,
+        L"%c%c%c%c-%c%c-%c%c",
+        install_date[0],
+        install_date[1],
+        install_date[2],
+        install_date[3],
+        install_date[4],
+        install_date[5],
+        install_date[6],
+        install_date[7]
+    );
+
+    return output;
+}
+
 errorcode_t populate_product_from_uninstall_key(HKEY hKey, PRODUCT_INFO product) {
     DWORD major;
     DWORD minor;
@@ -175,10 +211,12 @@ errorcode_t populate_product_from_uninstall_key(HKEY hKey, PRODUCT_INFO product)
     PTR(product).display_name     = reg_strdup_value(hKey, REG_UNINSTALL_KEY_DISPLAYNAME);
     PTR(product).display_version  = reg_strdup_value(hKey, REG_UNINSTALL_KEY_DISPLAYVERSION);
     PTR(product).tel_help         = reg_strdup_value(hKey, REG_UNINSTALL_KEY_HELPTELEPHONE);
-    PTR(product).install_date     = reg_strdup_value(hKey, REG_UNINSTALL_KEY_INSTALLDATE);
     PTR(product).publisher        = reg_strdup_value(hKey, REG_UNINSTALL_KEY_PUBLISHER);
     PTR(product).uninstall_instr  = reg_strdup_value(hKey, REG_UNINSTALL_KEY_UNINSTALLSTRING);
     PTR(product).url              = reg_strdup_value(hKey, REG_UNINSTALL_KEY_URLINFOABOUT);
+    PTR(product).install_date     = format_registry_install_date(
+        reg_strdup_value(hKey, REG_UNINSTALL_KEY_INSTALLDATE
+    ));
 
     major = read_registry_dword_ex(hKey, REG_UNINSTALL_KEY_MAJVER);
     minor = read_registry_dword_ex(hKey, REG_UNINSTALL_KEY_MINVER);

@@ -15,6 +15,10 @@
 
 #define LOG_ROTATE_SIZE_BYTES (1024l * 1024l)
 
+#if defined(_DEBUG_CONSOLE)
+void debug_jvmlist_tabularform(SYSTEM_DETAILS system_details);
+#endif
+
 typedef struct {
     LPWSTR log_file;
     LPWSTR log_dir;

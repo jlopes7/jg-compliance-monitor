@@ -6,4 +6,38 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 IDI_APP_ICON ICON "agent.ico"
 
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION     1,0,0,0
+ PRODUCTVERSION  1,0,0,0
+ FILEFLAGSMASK   0x3fL
+#ifdef _DEBUG
+ FILEFLAGS       VS_FF_DEBUG
+#else
+ FILEFLAGS       0x0L
+#endif
+ FILEOS          VOS__WINDOWS32
+ FILETYPE        VFT_APP
+ FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"  // US English, Unicode
+        BEGIN
+            VALUE "CompanyName",      "JGonzalez Software OU"
+            VALUE "FileDescription",  "JG Compliance Software - Agent Service"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "jgcomp-agent.exe"
+            VALUE "OriginalFilename", "jgcomp-agent.exe"
+            VALUE "ProductName",      "JG Compliance Agent"
+            VALUE "ProductVersion",   "1.0.0"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 Joao Gonzalez"
+        END
+    END
+
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
+
 //1 11 "MSG00409.bin"

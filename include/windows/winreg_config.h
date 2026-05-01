@@ -17,6 +17,8 @@
 
 #define REG_PATTERN_CLASSIF_FILE    L"PatternFile"
 
+#define REG_PROC_FRACTION_NUMBER    L"ProcFractNumber"
+
 #define REG_UNINSTALL_PATH                  L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
 #define REG_UNINSTALL_KEY_CONTACT           L"Contact"
 #define REG_UNINSTALL_KEY_DISPLAYNAME       L"DisplayName"

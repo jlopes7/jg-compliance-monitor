@@ -11,6 +11,7 @@
 
 #include "windows/logging.h"
 #include "windows/evtlog.h"
+#include "windows/winreg_config.h"
 
 static uint32_t _timeout_counter = 0;
 
@@ -50,12 +51,13 @@ cleanup:
 
 static BOOL fs_scan_run_once(HANDLE stop_event, SYSTEM_DETAILS *sysdetails) {
     fs_search_options_t options;
-    fs_search_stats_t stats;
-    errorcode_t result;
+    fs_search_stats_t   stats;
+    errorcode_t         result;
+    DWORD               procfracnum;
 
-    ULONGLONG started_ms;
-    ULONGLONG finished_ms;
-    double elapsed_seconds;
+    ULONGLONG           started_ms;
+    ULONGLONG           finished_ms;
+    double              elapsed_seconds;
 
     if (WaitForSingleObject(stop_event, 0) == WAIT_OBJECT_0) {
         return FALSE;
@@ -68,9 +70,11 @@ static BOOL fs_scan_run_once(HANDLE stop_event, SYSTEM_DETAILS *sysdetails) {
     ZeroMemory(&options, sizeof(options));
     ZeroMemory(&stats, sizeof(stats));
 
+    read_registry_dword(REG_PROC_FRACTION_NUMBER, &procfracnum);
+
     options.stop_event = stop_event;
     options.target_name = L"java.exe"; /*HARDCODED FOR NOW! We will only support Java discovery*/
-    options.worker_count = get_default_worker_count();
+    options.worker_count = get_default_worker_count(procfracnum);
     options.fixed_drives_only = TRUE;
     options.stop_on_first_match = FALSE;
     options.on_match = fs_scan_match_callback;
@@ -108,6 +112,10 @@ static BOOL fs_scan_run_once(HANDLE stop_event, SYSTEM_DETAILS *sysdetails) {
         stats.matches_found,
         stats.access_denied
     );
+
+#if defined(_DEBUG_CONSOLE)
+    debug_jvmlist_tabularform(PTR(sysdetails));
+#endif
 
     return TRUE;
 }

@@ -66,5 +66,6 @@ out/
 
 # Misc
 desktop.ini
-
+conf/agent.db-shm
+conf/agent.db-wal
 

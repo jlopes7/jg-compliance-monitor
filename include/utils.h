@@ -21,7 +21,7 @@
 #include "model/basemdl.h"
 
 #define MAX_STRING_LEN          1024
-#define INT_MAX_LEN     10
+#define INT_MAX_LEN             10
 
 #define SMALL_BUFFER    0x00000010 /*16*/
 #define LOW_BUFFER_SIZE 0x00000400 /*1K*/
@@ -32,6 +32,10 @@
 
 
 #define UNDEFINED_ATTRIBUTE     L"Unknown Value"
+
+#if defined(_DEBUG_CONSOLE)
+#define DBG_NULLSTR(X) ((X) != NULL ? (X) : L"")
+#endif
 
 #if !defined (MAXPATHLEN)
 #   define MAXPATHLEN	MAX_LOG_FILE
@@ -54,6 +58,13 @@
 #define PTR(X)              (*(X))
 
 #define ARRAY_LEN_COUNT(arr)   (sizeof(arr) / sizeof((arr)[0]))
+
+#define NEW_LPWSTR(VAR,SZ) \
+    wchar_t VAR[(SZ)];  \
+    ZeroMemory(VAR, sizeof(VAR))
+
+#define NEW_LPWSTR_HEAP(VAR, SZ) \
+    LPWSTR VAR = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (SZ) * sizeof(wchar_t))
 
 #if defined(_WIN32) || defined(_WIN64)
 #   define SLEEP_S(ms) Sleep((ms) * 1000)
@@ -100,7 +111,7 @@ typedef file_prop_reader_t *FILE_PROP_READER;
 
 #if defined(WIN32)
 errorcode_t split_trimmed_list(LPCWSTR input, LPWSTR **list_out, size_t *count_out);
-errorcode_t get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size);
+errorcode_t fs_get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size);
 errorcode_t fs_retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level);
 BOOL fs_resource_exists(LPCWSTR path, path_type_t type);
 BOOL fs_join_path(LPCWSTR basedir, LPCWSTR res, LPWSTR buffer, size_t buffer_cch);
@@ -115,7 +126,7 @@ LPWSTR heap_wcsdup(LPCWSTR src);
 
 LPWSTR utf8_to_wide_dup(const char *src);
 
-DWORD get_default_worker_count(void);
+DWORD get_default_worker_count(DWORD procfracnum);
 
 errorcode_t regex_match(LPCWSTR input, LPCWSTR pattern, BOOL *matched);
 
@@ -128,11 +139,15 @@ errorcode_t get_os_name_version(LPWSTR output, DWORD output_cch);
 errorcode_t get_os_version(LPWSTR output, DWORD output_cch);
 errorcode_t get_logical_core_count(DWORD *vcpu_count);
 errorcode_t get_physical_core_count(DWORD *physical_core_count);
-errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value);
+errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value, DWORD value_cch);
 
 errorcode_t init_file_prop_read(LPCWSTR file, FILE_PROP_READER *reader);
 errorcode_t get_file_prop_val(LPCWSTR propname, LPWSTR buffer, DWORD buffer_cch, FILE_PROP_READER reader);
 errorcode_t end_file_prop_read(FILE_PROP_READER reader);
+
+errorcode_t wstr_tokenize(LPCWSTR input, LPCWSTR delim, LPWSTR **tokens_out, DWORD *count_out);
+void wstr_free_tokens(LPWSTR *tokens, DWORD count);
+
 #endif
 
 #endif //JG_COMPLIANCE_MONITOR_UTILS_H

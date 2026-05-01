@@ -120,7 +120,7 @@ errorcode_t split_trimmed_list(LPCWSTR input, LPWSTR **list_out, size_t *count_o
     return rc;
 }
 
-errorcode_t get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size) {
+errorcode_t fs_get_directory_from_path(LPCWSTR file_path, LPWSTR dir_path, size_t size) {
     wchar_t temp_path[MAXPATHLEN];
     wchar_t *last_sep;
 
@@ -223,8 +223,9 @@ BOOL fs_join_path(LPCWSTR basedir, LPCWSTR res, LPWSTR buffer, size_t buffer_cch
     ) >= 0;
 }
 
-DWORD get_default_worker_count(void) {
+DWORD get_default_worker_count(DWORD procfracnum) {
     SYSTEM_INFO si;
+    DWORD procnum;
 
     GetSystemInfo(&si);
 
@@ -232,7 +233,10 @@ DWORD get_default_worker_count(void) {
         return 4; // defensive fallback, should not normally happen
     }
 
-    return si.dwNumberOfProcessors;
+    procnum = si.dwNumberOfProcessors / procfracnum;
+    if (procnum <= 0) procnum = 1;
+
+    return procnum;
 }
 
 errorcode_t fs_retrieve_directory(LPCWSTR filepath, LPWSTR dir, uint8_t level) {
@@ -651,7 +655,7 @@ errorcode_t get_physical_core_count(DWORD *physical_core_count) {
     return ST_CODE_SUCCESS;
 }
 
-errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value) {
+errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value, DWORD value_cch) {
     DWORD needed;
 
     if (!varname || !value) {
@@ -660,7 +664,7 @@ errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value) {
 
     value[0] = L'\0';
 
-    needed = GetEnvironmentVariableW(varname, value, BUFFER_SIZE);
+    needed = GetEnvironmentVariableW(varname, value, value_cch);
 
     if (needed == 0) {
         DWORD err = GetLastError();
@@ -673,7 +677,7 @@ errorcode_t get_env_var_val(LPCWSTR varname, LPWSTR value) {
         return ST_CODE_FAILED_OPERATION;
     }
 
-    if (needed > BUFFER_SIZE) {
+    if (needed >= value_cch) {
         value[0] = L'\0';
         return ST_CODE_BUFFER_TOO_SMALL;
     }
@@ -860,4 +864,94 @@ errorcode_t get_file_prop_val(
         buffer,
         buffer_cch
     );
+}
+
+errorcode_t wstr_tokenize(
+    LPCWSTR input,
+    LPCWSTR delim,
+    LPWSTR **tokens_out,
+    DWORD *count_out
+) {
+    LPWSTR buffer = NULL;
+    LPWSTR context = NULL;
+    LPWSTR token;
+    LPWSTR *tokens = NULL;
+    DWORD count = 0;
+    DWORD capacity = 0;
+
+    if (!input || !delim || !tokens_out || !count_out) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    *tokens_out = NULL;
+    *count_out = 0;
+
+    buffer = heap_wcsdup(input);
+    if (!buffer) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
+
+    token = wcstok_s(buffer, delim, &context);
+
+    while (token) {
+        if (count == capacity) {
+            DWORD new_capacity = (capacity == 0) ? 4 : capacity * 2;
+            LPWSTR *new_tokens;
+            if (tokens == NULL) {
+                new_tokens = HeapAlloc(
+                    GetProcessHeap(),
+                    HEAP_ZERO_MEMORY,
+                    new_capacity * sizeof(LPWSTR)
+                );
+            }
+            else {
+                new_tokens = HeapReAlloc(
+                    GetProcessHeap(),
+                    HEAP_ZERO_MEMORY,
+                    tokens,
+                    new_capacity * sizeof(LPWSTR)
+                );
+            }
+
+            if (!new_tokens) {
+                HeapFree(GetProcessHeap(), 0, buffer);
+                return ST_CODE_MEMORY_ALLOCATION_FAILED;
+            }
+
+            tokens = new_tokens;
+            capacity = new_capacity;
+        }
+
+        tokens[count] = heap_wcsdup(token);
+        if (!tokens[count]) {
+            for (DWORD i = 0; i < count; i++) {
+                HeapFree(GetProcessHeap(), 0, tokens[i]);
+            }
+
+            HeapFree(GetProcessHeap(), 0, tokens);
+            HeapFree(GetProcessHeap(), 0, buffer);
+
+            return ST_CODE_MEMORY_ALLOCATION_FAILED;
+        }
+
+        count++;
+        token = wcstok_s(NULL, delim, &context);
+    }
+
+    HeapFree(GetProcessHeap(), 0, buffer);
+
+    *tokens_out = tokens;
+    *count_out = count;
+
+    return ST_CODE_SUCCESS;
+}
+
+void wstr_free_tokens(LPWSTR *tokens, DWORD count) {
+    if (!tokens) return;
+
+    for (DWORD i = 0; i < count; i++) {
+        HeapFree(GetProcessHeap(), 0, tokens[i]);
+    }
+
+    HeapFree(GetProcessHeap(), 0, tokens);
 }

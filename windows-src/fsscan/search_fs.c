@@ -10,6 +10,7 @@
 #include <tgmath.h>
 
 #include "windows/evtlog.h"
+#include "windows/winreg_config.h"
 
 static DWORD WINAPI fs_worker_thread(LPVOID param);
 static void fs_free_queue_item(QUEUE_ITEM item);
@@ -380,7 +381,11 @@ errorcode_t fs_search_execute(const fs_search_options_t *options, fs_search_stat
     rt.stats = stats;
 
     worker_count = PTR(options).worker_count;
-    if (worker_count == 0) worker_count = get_default_worker_count();
+    if (worker_count == 0) {
+        DWORD procfracnum;
+        read_registry_dword(REG_PROC_FRACTION_NUMBER, &procfracnum);
+        worker_count = get_default_worker_count(procfracnum);
+    }
     if (worker_count > FS_SEARCH_MAX_WORKERS) worker_count = FS_SEARCH_MAX_WORKERS;
 
     logmsg(LOGGING_NORMAL, L"[FS CRAWLER] Number of worker threads: %d", worker_count);

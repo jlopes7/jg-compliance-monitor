@@ -104,7 +104,7 @@ errorcode_t logging_init(void) {
         return rc;
     }
 
-    rc = get_directory_from_path(log_file, log_dir, _LPWLEN(log_dir));
+    rc = fs_get_directory_from_path(log_file, log_dir, _LPWLEN(log_dir));
     if (!_IS_SUCCESS(rc)) {
         free(_logging_config);
         _logging_config = NULL;
@@ -461,3 +461,64 @@ static errorcode_t rotate_log_if_needed(LPCWSTR log_file_path) {
 
     return ST_CODE_SUCCESS;
 }
+
+#if defined(_DEBUG_CONSOLE)
+void debug_jvmlist_tabularform(SYSTEM_DETAILS system_details) {
+    DWORD i;
+
+    if (system_details == NULL) {
+        logmsg(LOGGING_WARN, L"[DEBUG][JVM] system_details is NULL");
+        return;
+    }
+
+    logmsg(LOGGING_NORMAL,
+        L"%-4ls | %-50ls | %-25ls | %-15ls | %-30ls | %-20ls | %-20ls | %-15ls | %-5ls | %-5ls | %-30ls | %-5ls | %-5ls | %-5ls | %-7ls",
+        L"IDX",
+        L"installation_path",
+        L"publisher",
+        L"license_type",
+        L"legal_copyright",
+        L"fullversion_jdk",
+        L"fullversion_win",
+        L"runtime_version",
+        L"major",
+        L"minor",
+        L"product_name",
+        L"is_jdk",
+        L"is_jre",
+        L"is_ojdk",
+        L"is_oracle"
+    );
+
+    logmsg(LOGGING_NORMAL,
+        L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+
+    for (i = 0; i < PTR(system_details).jvm_count; i++) {
+        JVM_DETAILS jvm = PTR(system_details).jvm[i];
+
+        if (jvm == NULL) {
+            logmsg(LOGGING_WARN, L"[DEBUG][JVM] JVM entry %lu is NULL", i);
+            continue;
+        }
+
+        logmsg(LOGGING_NORMAL,
+            L"%-4lu | %-50.50ls | %-25.25ls | %-15.15ls | %-30.30ls | %-20.20ls | %-20.20ls | %-15.15ls | %-5lu | %-5lu | %-30.30ls | %-5ls | %-5ls | %-5ls | %-7ls",
+            (i + 1),
+            DBG_NULLSTR(PTR(jvm).installation_path),
+            DBG_NULLSTR(PTR(jvm).publisher),
+            DBG_NULLSTR(PTR(jvm).license_type),
+            DBG_NULLSTR(PTR(jvm).legal_copyright),
+            DBG_NULLSTR(PTR(jvm).fullversion_jdk),
+            DBG_NULLSTR(PTR(jvm).fullversion_win),
+            DBG_NULLSTR(PTR(jvm).runtime_version),
+            PTR(jvm).major_version,
+            PTR(jvm).minor_version,
+            DBG_NULLSTR(PTR(jvm).product_name),
+            PTR(jvm).is_jdk ? L"TRUE" : L"FALSE",
+            PTR(jvm).is_jre ? L"TRUE" : L"FALSE",
+            PTR(jvm).is_ojdk ? L"TRUE" : L"FALSE",
+            PTR(jvm).is_oracle ? L"TRUE" : L"FALSE"
+        );
+    }
+}
+#endif

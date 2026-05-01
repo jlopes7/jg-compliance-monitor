@@ -8,13 +8,16 @@
 #include "windows/pe_file_prop.h"
 #include "windows/winreg_config.h"
 
+static errorcode_t jvm_parse_jre_jdk(JVM_DETAILS jvm, LPCWSTR javaExe);
+
 static errorcode_t parse_jvm_license_type(JVM_DETAILS jvm) {
     errorcode_t result;
     DWORD major_version, minor_version;
-    wchar_t jvm_base_path[MAX_PATH],
-            jvm_lic_path[MAX_PATH],
-            jvm_jdk_path[MAX_PATH];
     BOOL license_already_parsed = FALSE;
+
+    NEW_LPWSTR(jvm_base_path, MAX_PATH);
+    NEW_LPWSTR(jvm_lic_path, MAX_PATH);
+    NEW_LPWSTR(jvm_jdk_path, MAX_PATH);
 
     if (!jvm) {
         return ST_CODE_INVALID_PARAM;
@@ -48,13 +51,15 @@ static errorcode_t parse_jvm_license_type(JVM_DETAILS jvm) {
                 license_already_parsed = TRUE;
 
                 PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OJDK);
+                PTR(jvm).is_oracle = FALSE;
+                PTR(jvm).is_ojdk   = TRUE;
             }
         }
     }
 
     // We will have to evaluate the major and minor versions
     if ( !license_already_parsed ) {
-        if ( _wcsicmp(PTR(jvm).publisher, L"Oracle Corporation") == 0 ) {
+        if ( _IS_ORACLE_CORP(PTR(jvm).publisher) ) {
             if ( major_version <= 7 ) {
                 switch (major_version) {
                     case 7:
@@ -90,14 +95,139 @@ static errorcode_t parse_jvm_license_type(JVM_DETAILS jvm) {
                     PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_NFTC);
                 }
             }
+
+            PTR(jvm).is_oracle = TRUE;
+            PTR(jvm).is_ojdk   = FALSE;
         }
         else if ( _wcsicmp(PTR(jvm).publisher, UNDEFINED_ATTRIBUTE) == 0 ) {
             PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_UNKNOWN);
+            PTR(jvm).is_oracle = FALSE;
+            PTR(jvm).is_ojdk   = FALSE;
         }
         else {
             // GPL OJDK
             PTR(jvm).license_type = heap_wcsdup(LIC_TYPE_OJDK);
+            PTR(jvm).is_oracle = FALSE;
+            PTR(jvm).is_ojdk   = TRUE;
         }
+    }
+
+    return ST_CODE_SUCCESS;
+}
+
+static errorcode_t parse_jvm_env_details(SYSTEM_DETAILS system_info, LPCWSTR envvar) {
+    errorcode_t result;
+    PE_FILE pe_details = NULL;
+
+    NEW_LPWSTR(envvar_val, MID_BUFFER_SIZE);
+
+    if (!system_info) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    // Path needs a special threatment
+    if ( _wcsicmp(envvar, ENV_VAR_PATH) == 0 ) {
+        LPWSTR *envvar_paths;
+        DWORD count_len = 0;
+        NEW_LPWSTR(full_path, LOW_BUFFER_SIZE);
+
+        result = get_env_var_val(envvar, full_path, _LPWLEN(full_path));
+        if (!_IS_SUCCESS(result)) {
+            return result;
+        }
+
+        result = wstr_tokenize(full_path, L";", &envvar_paths, &count_len);
+        if ( _IS_SUCCESS(result) ) {
+            DWORD local_counter = 0;
+            BOOL found_java_exe = FALSE;
+
+            for ( ; !found_java_exe && local_counter < count_len; local_counter++ ) {
+                NEW_LPWSTR(cur_full_path, LOW_BUFFER_SIZE);
+
+                if ( fs_join_path(envvar_paths[local_counter], JAVA_EXECUTABLE, cur_full_path, LOW_BUFFER_SIZE) ) {
+                    if ( fs_resource_exists(cur_full_path, LEAF) ) {
+                        found_java_exe = TRUE;
+                        NEW_LPWSTR(envversion, MAX_STRING_LEN);
+
+                        result = pe_open(cur_full_path, &pe_details);
+                        if ( !_IS_SUCCESS(result) ) {
+                            logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE info for: %ls. RC: %d", cur_full_path, result);
+                            return ST_CODE_FAILED_TORETRIEVE_ENVVAR;
+                        }
+
+                        result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, envversion, MAX_STRING_LEN);
+                        if (!_IS_SUCCESS(result)) {
+                            logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE property: %ls. JVM path from environment variable: %ls. RC: %d", PE_PROP_FILE_VERSION, cur_full_path, result);
+                            goto pe_close_1;
+                        }
+
+                        PTR(system_info).env_path_version     = heap_wcsdup(envversion);
+                        PTR(system_info).env_path_installpath = heap_wcsdup(cur_full_path);
+pe_close_1:
+                        if (pe_details) {
+                            pe_close(pe_details);
+                            pe_details = NULL;
+                        }
+                    }
+                }
+            }
+
+            if (!found_java_exe) {
+                logmsg(LOGGING_WARN, L"[PARSE ENVVAR] The Java executable could not be found in the PATH (Maybe the PATH is broken?). Environment Variable being parsed: %ls", envvar);
+                PTR(system_info).is_env_path_broken = TRUE;
+
+                return ST_CODE_JAVAEXE_DOESNT_EXIST;
+            }
+
+            wstr_free_tokens(envvar_paths, count_len);
+        }
+    }
+    // Lets check for the JAVA_HOME env var
+    else if ( _wcsicmp(envvar, ENV_VAR_JAVAHOME) == 0 ) {
+        NEW_LPWSTR(fulljava_path, MID_BUFFER_SIZE);
+
+        result = get_env_var_val(envvar, envvar_val, MID_BUFFER_SIZE);
+        if (!_IS_SUCCESS(result)) {
+            return result;
+        }
+
+        if ( fs_join_path(envvar_val, JAVA_EXECUTABLE, fulljava_path, MID_BUFFER_SIZE) ) {
+            if ( fs_resource_exists(fulljava_path, LEAF) ) {
+                NEW_LPWSTR(envversion, MAX_STRING_LEN);
+
+                result = pe_open(fulljava_path, &pe_details);
+                if ( !_IS_SUCCESS(result) ) {
+                    logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE info for: %ls. RC: %d", fulljava_path, result);
+                    return ST_CODE_FAILED_TORETRIEVE_ENVVAR;
+                }
+
+                result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, envversion, MAX_STRING_LEN);
+                if (!_IS_SUCCESS(result)) {
+                    logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE property: %ls. JVM path from environment variable: %ls. RC: %d", PE_PROP_FILE_VERSION, fulljava_path, result);
+                    goto pe_close_2;
+                }
+
+                PTR(system_info).env_javahome_version     = heap_wcsdup(envversion);
+                PTR(system_info).env_javahome_installpath = heap_wcsdup(fulljava_path);
+pe_close_2:
+                if (pe_details) {
+                    pe_close(pe_details);
+                    pe_details = NULL;
+                }
+            }
+            else {
+                logmsg(LOGGING_WARN, L"[PARSE ENVVAR] The Java executable could not be found at: %ls. Environment Variable being parsed: %ls", fulljava_path, envvar);
+                PTR(system_info).is_env_javahome_broken = TRUE;
+
+                return ST_CODE_JAVAEXE_DOESNT_EXIST;
+            }
+        }
+        else return ST_CODE_FAILED_TORETRIEVE_ENVVAR;
+    }
+    // For now only PATH and JAVA_HOME env vars are supported
+    else {
+        logmsg(LOGGING_ERROR, L"[PARSE ENVVAR] Unsupported environment variable provided: %ls", envvar);
+        return ST_CODE_FAILED_TORETRIEVE_ENVVAR;
     }
 
     return ST_CODE_SUCCESS;
@@ -113,18 +243,17 @@ static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
 
     DWORD   major_version = 0,
             minor_version = 0;
-    wchar_t full_version[SMALL_BUFFER];
-    wchar_t publisher_comp[SMALL_BUFFER],
-            legal_copyright[SMALL_BUFFER];
-    wchar_t release_file_path[LOW_BUFFER_SIZE],
-            release_file_dir[LOW_BUFFER_SIZE];
 
-    if (!jvmPath || !jvm) {
+    NEW_LPWSTR(full_version, MAX_STRING_LEN);
+
+    NEW_LPWSTR(publisher_comp, MAX_STRING_LEN);
+    NEW_LPWSTR(legal_copyright, MAX_STRING_LEN);
+    NEW_LPWSTR(release_file_path, LOW_BUFFER_SIZE);
+    NEW_LPWSTR(release_file_dir, LOW_BUFFER_SIZE);
+
+    if (!jvm) {
         return ST_CODE_INVALID_PARAM;
     }
-
-    ZeroMemory(publisher_comp, sizeof(publisher_comp));
-    ZeroMemory(legal_copyright, sizeof(legal_copyright));
 
     result = pe_open(jvmPath, &pe_details);
     if ( !_IS_SUCCESS(result) ) {
@@ -150,7 +279,7 @@ static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
         PTR(jvm).minor_version = minor_version;
     }
 
-    result = pe_get_prop(pe_details, PE_PROP_COMPANY_NAME, publisher_comp, SMALL_BUFFER);
+    result = pe_get_prop(pe_details, PE_PROP_COMPANY_NAME, publisher_comp, MAX_STRING_LEN);
     if ( _IS_SUCCESS(result) ) {
         PTR(jvm).publisher = heap_wcsdup(publisher_comp);
     }
@@ -159,7 +288,7 @@ static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
         PTR(jvm).publisher = heap_wcsdup(UNDEFINED_ATTRIBUTE);
     }
 
-    result = pe_get_prop(pe_details, PE_PROP_LEGAL_COPYRIGHT, legal_copyright, SMALL_BUFFER);
+    result = pe_get_prop(pe_details, PE_PROP_LEGAL_COPYRIGHT, legal_copyright, MAX_STRING_LEN);
     if ( _IS_SUCCESS(result) ) {
         PTR(jvm).legal_copyright = heap_wcsdup(legal_copyright);
     }
@@ -168,7 +297,7 @@ static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
         PTR(jvm).legal_copyright = heap_wcsdup(UNDEFINED_ATTRIBUTE);
     }
 
-    result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, full_version, SMALL_BUFFER);
+    result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, full_version, MAX_STRING_LEN);
     if ( _IS_SUCCESS(result) ) {
         PTR(jvm).fullversion_win = heap_wcsdup(full_version);
     }
@@ -183,12 +312,10 @@ static errorcode_t parse_jvm_pe_rel_model(LPCWSTR jvmPath, JVM_DETAILS jvm) {
 
     // Work the properties from the RELEASE file
     for ( ; !found_release_file && back_counter < 4 /*Go up only 2 levels*/; back_counter++ ) {
-        ZeroMemory(release_file_path, sizeof(release_file_path));
-        ZeroMemory(release_file_dir, sizeof(release_file_dir));
 
         result = fs_retrieve_directory(jvmPath, release_file_dir, back_counter);
         if ( _IS_SUCCESS(result) ) {
-            if ( fs_join_path(release_file_dir, L"RELEASE", release_file_path, LOW_BUFFER_SIZE) ) {
+            if ( fs_join_path(release_file_dir, L"RELEASE", release_file_path, MAX_STRING_LEN) ) {
                 found_release_file = fs_resource_exists(release_file_path, LEAF);
             }
         }
@@ -249,7 +376,7 @@ static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWST
     size_t local_counter = 0;
     BOOL end_matched = FALSE;
 
-    if ( !config || !jvmPath || !productName || productNameCch == 0 ) {
+    if ( !config ) {
         return ST_CODE_INVALID_PARAM;
     }
 
@@ -290,10 +417,10 @@ static errorcode_t parse_model_jvm_product(CONFIG config, LPCWSTR jvmPath, LPWST
 static BOOL free_jvm_details(JVM_DETAILS jvm) {
     if (!jvm) return TRUE;
 
-    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_path_installpath);
+    /*HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_path_installpath);
     HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_path_version);
     HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_javahome_installpath);
-    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_javahome_version);
+    HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).env_javahome_version);*/
 
     HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).installation_path);
     HeapFree(GetProcessHeap(), 0, (void *)PTR(jvm).license_type);
@@ -404,9 +531,22 @@ errorcode_t parse_model_system(SYSTEM_DETAILS *sysdetails) {
         PTR(*sysdetails).num_physical_cores = physical_cores;
     }
 
+    /*
+     * LOAD THE ENVIRONMENT CONFIGURATION
+     * -----------------------------------
+     */
+    result = parse_jvm_env_details(PTR(sysdetails), ENV_VAR_JAVAHOME);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_WARN, L"-- parse_model_system: Failed to parse the JAVA_HOME environment variable. RC: %d", result);
+    }
+    result = parse_jvm_env_details(PTR(sysdetails), ENV_VAR_PATH);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_WARN, L"-- parse_model_system: Failed to parse the PATH environment variable. RC: %d", result);
+    }
+
     // Process the environment variable paths
-    result = get_env_var_val(ENV_VAR_PATH, env_path);
-    result |= get_env_var_val(ENV_VAR_JAVAHOME, env_javahome);
+    result = get_env_var_val(ENV_VAR_PATH, env_path, MID_BUFFER_SIZE);
+    result |= get_env_var_val(ENV_VAR_JAVAHOME, env_javahome, MID_BUFFER_SIZE);
     if ( !_IS_SUCCESS(result) ) {
         logmsg(LOGGING_WARN, L"Failed to retrieve either environment variables PATH or(and) JAVA_HOME. Maybe the JAVA_HOME variable is empty? Code: %d", result);
     }
@@ -537,6 +677,15 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
         logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to parse the license information for the JVM: %ls. RC: %d", jvmPath, result);
     }
 
+    /*
+     * LOAD THE FLAG TO IDENTIFY THE JDK/JRE
+     * --------------------------------------
+     */
+    result = jvm_parse_jre_jdk(item, jvmPath);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_WARN, L"-- add_jvm_instance: Failed to identify the JVM type (JDK/JRE). Given path: %ls. RC: %d", jvmPath, result);
+    }
+
     // TODO: Continue processing the JVM
 
     PTR(*sysdetails).jvm[PTR(*sysdetails).jvm_count] = item;
@@ -546,6 +695,66 @@ errorcode_t add_jvm_instance(SYSTEM_DETAILS *sysdetails, CONFIG config, LPCWSTR 
     // PLACE THE COUNTER TO THE NEXT ELEMENT !
     PTR(*sysdetails).jvm_count++;
 
+    return ST_CODE_SUCCESS;
+}
+
+static errorcode_t jvm_parse_jre_jdk(JVM_DETAILS jvm, LPCWSTR javaExe) {
+    errorcode_t result;
+    NEW_LPWSTR(javacpath, LOW_BUFFER_SIZE);
+    NEW_LPWSTR(javapath, LOW_BUFFER_SIZE);
+
+    if (!jvm) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    PTR(jvm).is_jdk = FALSE;
+    PTR(jvm).is_jre = FALSE;
+
+    result = fs_get_directory_from_path(javaExe, javapath, LOW_BUFFER_SIZE);
+    if ( !_IS_SUCCESS(result) ) {
+        logmsg(LOGGING_ERROR, L"[JVM TYPE CLASSIF] Could not parse the directory of the Java executable: %ls", javaExe);
+        return result;
+    }
+
+    if ( fs_join_path(javapath, JAVAC_EXECUTABLE, javacpath, LOW_BUFFER_SIZE) ) {
+        if ( fs_resource_exists(javacpath, LEAF) ) {
+            PTR(jvm).is_jdk = TRUE;
+            PTR(jvm).is_jre = FALSE;
+
+            goto jvm_parse_jre_jdk_success;
+        }
+        else {
+            ZeroMemory(javapath, LOW_BUFFER_SIZE);
+            ZeroMemory(javacpath, LOW_BUFFER_SIZE);
+
+            result = fs_retrieve_directory(javaExe, javapath, 3);
+            if ( !_IS_SUCCESS(result) ) {
+                logmsg(LOGGING_ERROR, L"[JVM TYPE CLASSIF] Could not resolve the directory to search for the JDK evidence. Java executable: %ls", javaExe);
+                return result;
+            }
+
+            if ( fs_join_path(javapath, L"bin\\javac.exe", javacpath, LOW_BUFFER_SIZE) ) {
+                if ( fs_resource_exists(javacpath, LEAF) ) {
+                    PTR(jvm).is_jdk = TRUE;
+                    PTR(jvm).is_jre = FALSE;
+                }
+                else {
+                    PTR(jvm).is_jdk = FALSE;
+                    PTR(jvm).is_jre = TRUE;
+                }
+
+                goto jvm_parse_jre_jdk_success;
+            }
+            else {
+                goto jvm_parse_jre_jdk_failed_parse_path;
+            }
+        }
+    }
+
+jvm_parse_jre_jdk_failed_parse_path:
+    logmsg(LOGGING_WARN, L"[JVM TYPE CLASSIF] Failed to test the JDK/JRE because it failed the filesystem execution. Java executable: %ls", javaExe);
+
+jvm_parse_jre_jdk_success:
     return ST_CODE_SUCCESS;
 }
 
