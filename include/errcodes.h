@@ -49,6 +49,7 @@ typedef unsigned int errorcode_t;
 #define ST_CODE_PROP_NOT_FOUND              70037   /* The property could not be found in the file */
 #define ST_CODE_FAILED_TORETRIEVE_ENVVAR    70038   /* Failed to retrieve the environment variable value */
 #define ST_CODE_JAVAEXE_DOESNT_EXIST        70039   /* The Java executable doesn't exist, or it was not found */
+#define ST_CODE_DB_FAILEDPARSE_OPEN         70040   /* Failed to execute the pragma open instructions with the database */
 
 
 #endif //JG_COMPLIANCE_MONITOR_ERRCODES_H

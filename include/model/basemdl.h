@@ -8,8 +8,6 @@
 #include <wchar.h>
 #include "cjson/cJSON.h"
 
-#include "windows/db/agent_db.h"
-
 #define PUBLISHER_ORACLE_CORPORATION L"Oracle Corporation"
 
 #define JAVA_EXECUTABLE         L"java.exe"
@@ -81,7 +79,6 @@ typedef struct _jvm_details {
 
     LPCWSTR product_name;
     PRODUCT_INFO product_info;
-
 
     BOOL is_jdk;
     BOOL is_jre;

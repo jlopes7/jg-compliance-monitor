@@ -19,38 +19,23 @@ extern "C" {
 
 typedef struct agent_db_t {
     sqlite3 *handle;
+
+    //LPCWSTR db_name;
+    LPCWSTR db_path;
 } agent_db_t;
 
 typedef agent_db_t *AGENT_DB;
 
-typedef struct fs_scan_result_t {
-    const wchar_t *path;
-    const wchar_t *path_hash;
-
-    const wchar_t *file_name;
-    const wchar_t *extension;
-
-    int64_t size_bytes;
-    int64_t modified_time_utc;
-
-    const wchar_t *product_name;
-    const wchar_t *product_version;
-    const wchar_t *vendor_name;
-
-    const wchar_t *classification_status;
-
-    int64_t first_seen_utc;
-    int64_t last_seen_utc;
-
-    const wchar_t *scan_run_id;
-} fs_scan_result_t;
-
-typedef fs_scan_result_t *FS_SCAN_RESULT;
-
 errorcode_t agent_db_open(AGENT_DB *db);
 errorcode_t agent_db_init_schema(AGENT_DB db);
-errorcode_t agent_db_upsert_fs_result(AGENT_DB db, const FS_SCAN_RESULT result);
 errorcode_t agent_db_close(AGENT_DB db);
+
+errorcode_t agent_db_prepare(AGENT_DB db, const char *sql, sqlite3_stmt **stmt);
+errorcode_t agent_db_bind_text16_or_null(sqlite3_stmt *stmt, int index,  LPCWSTR value);
+errorcode_t agent_db_bind_int64(sqlite3_stmt *stmt, int index, int64_t value);
+errorcode_t agent_db_exec_sql(AGENT_DB db, const char *sql);
+errorcode_t agent_db_step_done(sqlite3_stmt *stmt);
+errorcode_t agent_db_finalize(sqlite3_stmt *stmt);
 
 #ifdef __cplusplus
 }

@@ -29,10 +29,6 @@ static errorcode_t parse_jvm_license_type(JVM_DETAILS jvm) {
         return ST_CODE_INVALID_PARAM;
     }
 
-    ZeroMemory(jvm_base_path, sizeof(jvm_base_path));
-    ZeroMemory(jvm_lic_path, sizeof(jvm_lic_path));
-    ZeroMemory(jvm_jdk_path, sizeof(jvm_jdk_path));
-
     // Try to resolve the license from the license file
     result = fs_retrieve_directory(PTR(jvm).installation_path, jvm_base_path, 2);
     if ( !_IS_SUCCESS(result) ) {
@@ -158,16 +154,11 @@ static errorcode_t parse_jvm_env_details(SYSTEM_DETAILS system_info, LPCWSTR env
                         result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, envversion, MAX_STRING_LEN);
                         if (!_IS_SUCCESS(result)) {
                             logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE property: %ls. JVM path from environment variable: %ls. RC: %d", PE_PROP_FILE_VERSION, cur_full_path, result);
-                            goto pe_close_1;
+                            goto pe_close;
                         }
 
                         PTR(system_info).env_path_version     = heap_wcsdup(envversion);
                         PTR(system_info).env_path_installpath = heap_wcsdup(cur_full_path);
-pe_close_1:
-                        if (pe_details) {
-                            pe_close(pe_details);
-                            pe_details = NULL;
-                        }
                     }
                 }
             }
@@ -204,16 +195,11 @@ pe_close_1:
                 result = pe_get_prop(pe_details, PE_PROP_FILE_VERSION, envversion, MAX_STRING_LEN);
                 if (!_IS_SUCCESS(result)) {
                     logmsg(LOGGING_WARN, L"[PARSE ENVVAR] Failed to retrieve the PE property: %ls. JVM path from environment variable: %ls. RC: %d", PE_PROP_FILE_VERSION, fulljava_path, result);
-                    goto pe_close_2;
+                    goto pe_close;
                 }
 
                 PTR(system_info).env_javahome_version     = heap_wcsdup(envversion);
                 PTR(system_info).env_javahome_installpath = heap_wcsdup(fulljava_path);
-pe_close_2:
-                if (pe_details) {
-                    pe_close(pe_details);
-                    pe_details = NULL;
-                }
             }
             else {
                 logmsg(LOGGING_WARN, L"[PARSE ENVVAR] The Java executable could not be found at: %ls. Environment Variable being parsed: %ls", fulljava_path, envvar);
@@ -229,6 +215,10 @@ pe_close_2:
         logmsg(LOGGING_ERROR, L"[PARSE ENVVAR] Unsupported environment variable provided: %ls", envvar);
         return ST_CODE_FAILED_TORETRIEVE_ENVVAR;
     }
+
+pe_close:
+    pe_close(pe_details);
+    pe_details = NULL;
 
     return ST_CODE_SUCCESS;
 }

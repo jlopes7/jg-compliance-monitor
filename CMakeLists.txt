@@ -32,6 +32,8 @@ if(WIN32)
 
             windows-src/sqlite/sqlite3.c
             windows-src/db/agent_db.c
+            windows-src/db/db_model_proc.c
+            windows-src/db/db_model.c
             windows-src/cjson/cJSON.c
 
             windows-src/workers/jvm_worker.c
@@ -72,6 +74,7 @@ if(WIN32)
     target_link_libraries(jg_compliance_monitor PRIVATE
             advapi32
             Version
+            bcrypt
             "${CMAKE_SOURCE_DIR}/lib/pcre2-16-static_x64.lib"
     )
 

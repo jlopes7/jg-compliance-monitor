@@ -2,40 +2,12 @@
 // Created by Joao Gonzalez on 4/26/2026.
 //
 
-#include "windows/db/agent_db.h"
-
 #include "windows/logging.h"
 #include "windows/winreg_config.h"
+#include "windows/db/db_model.h"
+#include "windows/db/agent_db.h"
 
-/**
- * The tiny SQL DDL for the Agent persistence. These entries are used for Batch
- * processing later in the code
- */
-const char *AGENT_DB_DDL =
-        "CREATE TABLE IF NOT EXISTS fs_scan_result ("
-        "    id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "    path TEXT NOT NULL,"
-        "    path_hash TEXT NOT NULL UNIQUE,"
-        "    file_name TEXT,"
-        "    extension TEXT,"
-        "    size_bytes INTEGER,"
-        "    modified_time_utc INTEGER,"
-        "    product_name TEXT,"
-        "    product_version TEXT,"
-        "    vendor_name TEXT,"
-        "    classification_status TEXT NOT NULL DEFAULT 'pending',"
-        "    first_seen_utc INTEGER NOT NULL,"
-        "    last_seen_utc INTEGER NOT NULL,"
-        "    scan_run_id TEXT"
-        ");"
-
-        "CREATE INDEX IF NOT EXISTS idx_fs_scan_result_last_seen "
-        "ON fs_scan_result(last_seen_utc);"
-
-        "CREATE INDEX IF NOT EXISTS idx_fs_scan_result_classification_status "
-        "ON fs_scan_result(classification_status);";
-
-static errorcode_t agent_db_exec_sql(AGENT_DB db, const char *sql) {
+errorcode_t agent_db_exec_sql(AGENT_DB db, const char *sql) {
     char *errmsg = NULL;
     errorcode_t result;
 
@@ -57,7 +29,7 @@ static errorcode_t agent_db_exec_sql(AGENT_DB db, const char *sql) {
     return ST_CODE_SUCCESS;
 }
 
-static errorcode_t agent_db_bind_text16_or_null(sqlite3_stmt *stmt, int index,  LPCWSTR value) {
+errorcode_t agent_db_bind_text16_or_null(sqlite3_stmt *stmt, int index,  LPCWSTR value) {
     errorcode_t result;
 
     if (stmt == NULL || index <= 0) {
@@ -79,7 +51,7 @@ static errorcode_t agent_db_bind_text16_or_null(sqlite3_stmt *stmt, int index,  
     return ST_CODE_SUCCESS;
 }
 
-static errorcode_t agent_db_bind_int64(sqlite3_stmt *stmt, int index, int64_t value) {
+errorcode_t agent_db_bind_int64(sqlite3_stmt *stmt, int index, int64_t value) {
     errorcode_t result;
 
     if (stmt == NULL || index <= 0) {
@@ -95,13 +67,77 @@ static errorcode_t agent_db_bind_int64(sqlite3_stmt *stmt, int index, int64_t va
     return ST_CODE_SUCCESS;
 }
 
+errorcode_t agent_db_prepare(AGENT_DB db, const char *sql, sqlite3_stmt **stmt) {
+    int rc;
+
+    if (db == NULL || PTR(db).handle == NULL || sql == NULL || stmt == NULL) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    PTR(stmt) = NULL;
+
+    rc = sqlite3_prepare_v2(PTR(db).handle, sql, -1, stmt, NULL);
+    if (rc != SQLITE_OK) {
+        logmsg(
+            LOGGING_ERROR,
+            L"[DB] Failed to prepare SQL statement: %S. Details: %S",
+            sql,
+            sqlite3_errmsg(PTR(db).handle)
+        );
+
+        return ST_CODE_DB_PREPARE_FAILED;
+    }
+
+    return ST_CODE_SUCCESS;
+}
+
+errorcode_t agent_db_step_done(sqlite3_stmt *stmt) {
+    int rc;
+    sqlite3 *handle;
+
+    if (stmt == NULL) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    handle = sqlite3_db_handle(stmt);
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        logmsg(
+            LOGGING_ERROR,
+            L"[DB] Failed to execute prepared statement. SQLite rc=%d. Details: %S",
+            rc,
+            handle ? sqlite3_errmsg(handle) : "unknown"
+        );
+
+        return ST_CODE_DB_EXEC_FAILED;
+    }
+
+    return ST_CODE_SUCCESS;
+}
+
+errorcode_t agent_db_finalize(sqlite3_stmt *stmt) {
+    int rc;
+
+    if (stmt == NULL) {
+        return ST_CODE_SUCCESS;
+    }
+
+    rc = sqlite3_finalize(stmt);
+    if (rc != SQLITE_OK) {
+        return ST_CODE_DB_EXEC_FAILED;
+    }
+
+    return ST_CODE_SUCCESS;
+}
+
 errorcode_t agent_db_open(AGENT_DB *db) {
     AGENT_DB local_db;
     errorcode_t result;
-    wchar_t db_path[MAX_PATH];
 
-    ZeroMemory(db_path, sizeof(db_path));
-    read_registry_string(REG_AGENTCACHEDB, db_path, MAX_PATH);
+    NEW_LPWSTR(db_path, MAX_STRING_LEN);
+
+    read_registry_string(REG_AGENTCACHEDB, db_path, MAX_STRING_LEN);
 
     if (db == NULL || db_path[0] == L'\0') {
         return ST_CODE_INVALID_PARAM;
@@ -128,13 +164,19 @@ errorcode_t agent_db_open(AGENT_DB *db) {
         return ST_CODE_DB_OPEN_FAILED;
     }
 
+    PTR(local_db).db_path = heap_wcsdup(db_path);
+
     /*
      * WAL mode is generally a good default for a local agent database.
      * It allows better read/write behaviour than the default rollback journal.
      */
-    agent_db_exec_sql(local_db, "PRAGMA journal_mode=WAL;");
-    agent_db_exec_sql(local_db, "PRAGMA synchronous=NORMAL;");
-    agent_db_exec_sql(local_db, "PRAGMA foreign_keys=ON;");
+    result = agent_db_exec_sql(local_db, "PRAGMA journal_mode=WAL;");
+    result |= agent_db_exec_sql(local_db, "PRAGMA synchronous=NORMAL;");
+    result |= agent_db_exec_sql(local_db, "PRAGMA foreign_keys=ON;");
+
+    if (!_IS_SUCCESS(result)) {
+        return ST_CODE_DB_FAILEDPARSE_OPEN;
+    }
 
     PTR(db) = local_db;
 
@@ -151,15 +193,37 @@ errorcode_t agent_db_close(AGENT_DB db) {
         db->handle = NULL;
     }
 
-    HeapFree(GetProcessHeap(), 0, db);
+    HeapFree(GetProcessHeap(), 0, (LPVOID)PTR(db).db_path);
+    //HeapFree(GetProcessHeap(), 0, (LPVOID)PTR(db).db_name);
+    HeapFree(GetProcessHeap(), 0, (LPVOID)db);
 
     return ST_CODE_SUCCESS;
 }
 
 errorcode_t agent_db_init_schema(AGENT_DB db) {
+    errorcode_t result;
     if (db == NULL || PTR(db).handle == NULL) {
         return ST_CODE_INVALID_PARAM;
     }
 
-    return agent_db_exec_sql(db, AGENT_DB_DDL);
+    logmsg(LOGGING_NORMAL, L"[DB] Initializing agent database: %ls", PTR(db).db_path);
+
+    result = agent_db_exec_sql(db, k_system_db_ddl);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_ERROR, L"[DB] Failed to create the 'agent_system' entity: %ls. Code", k_system_db_ddl, result);
+        return result;
+    }
+    result = agent_db_exec_sql(db, k_jvmdetails_db_ddl);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_ERROR, L"[DB] Failed to create the 'agent_jvm_details' entity: %ls. Code", k_jvmdetails_db_ddl, result);
+        return result;
+    }
+
+    result = agent_db_exec_sql(db, k_productinfo_db_ddl);
+    if (!_IS_SUCCESS(result)) {
+        logmsg(LOGGING_ERROR, L"[DB] Failed to create the 'agent_product_details' entity: %ls. Code", k_productinfo_db_ddl, result);
+        return result;
+    }
+
+    return ST_CODE_SUCCESS;
 }

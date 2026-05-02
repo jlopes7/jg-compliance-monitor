@@ -8,6 +8,9 @@
 #include "windows/evtlog.h"
 #include "windows/logging.h"
 
+/**
+ * SUPPORT MATRIX: Windows Workstations 10 and 11 and Windows Servers 2008 R2+
+ */
 int wmain(void) {
     // Initialize the logging system
     errorcode_t rc;
