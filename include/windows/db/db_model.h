@@ -15,4 +15,7 @@ extern const char *k_agent_system_upsert_dml;
 extern const char *k_agent_jvm_upsert_dml;
 extern const char *k_agent_productinfo_upsert_dml;
 
+extern const char *k_agent_jvm_select_hashes_by_system_dml;
+extern const char *k_agent_jvm_pair_state_update_dml;
+
 #endif //JG_COMPLIANCE_MONITOR_DB_MODEL_H

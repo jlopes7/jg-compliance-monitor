@@ -308,7 +308,7 @@ errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails, LPCWSTR hos
     DB_TRY(db_bind_bool(stmt, index++, jvmdetails->is_oracle));
 
     DB_TRY(agent_db_bind_int64(stmt, index++, DB_SYNC_NOT_SYNCED));
-    DB_TRY(agent_db_bind_int64(stmt, index++, DB_REMOVE_FIRST_READ));
+    DB_TRY(agent_db_bind_int64(stmt, index++, DB_JVM_REMOVE_CTRL_FIRST_READ));
 
     DB_TRY(agent_db_bind_text16_or_null(stmt, index++, now_iso));
     DB_TRY(agent_db_bind_text16_or_null(stmt, index++, now_iso));
@@ -398,6 +398,203 @@ cleanup:
     fin_result = agent_db_finalize(stmt);
     if (_IS_SUCCESS(result) && !_IS_SUCCESS(fin_result)) {
         result = fin_result;
+    }
+
+    return result;
+}
+
+static BOOL db_hash_in_list(LPCWSTR hash, LPWSTR hash_list, DWORD hash_count) {
+    DWORD i;
+
+    if (hash == NULL || hash_list == NULL) {
+        return FALSE;
+    }
+
+    for (i = 0; i < hash_count; i++) {
+        LPCWSTR current_hash = hash_list + ((SIZE_T)i * SHA256_HEX_CCH);
+
+        if (current_hash[0] == L'\0') {
+            continue;
+        }
+
+        if (wcscmp(hash, current_hash) == 0) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static errorcode_t db_build_active_jvm_hash_list(SYSTEM_DETAILS sysdetails, LPWSTR *hash_list_out, DWORD *hash_count_out) {
+    LPWSTR hash_list = NULL;
+    DWORD i;
+    DWORD hash_count = 0;
+    SIZE_T alloc_cch;
+    errorcode_t result;
+
+    if (sysdetails == NULL || hash_list_out == NULL || hash_count_out == NULL) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    PTR(hash_list_out) = NULL;
+    PTR(hash_count_out) = 0;
+
+    if (PTR(sysdetails).jvm_count == 0 || PTR(sysdetails).jvm == NULL) {
+        return ST_CODE_SUCCESS;
+    }
+
+    alloc_cch = (SIZE_T)PTR(sysdetails).jvm_count * SHA256_HEX_CCH;
+
+    hash_list = HeapAlloc(
+        GetProcessHeap(),
+        HEAP_ZERO_MEMORY,
+        alloc_cch * sizeof(wchar_t)
+    );
+    if (hash_list == NULL) {
+        return ST_CODE_MEMORY_ALLOCATION_FAILED;
+    }
+
+    for (i = 0; i < PTR(sysdetails).jvm_count; i++) {
+        JVM_DETAILS jvm;
+        LPWSTR hash_slot;
+
+        jvm = PTR(sysdetails).jvm[i];
+        if (jvm == NULL ||
+            PTR(jvm).installation_path == NULL ||
+            PTR(jvm).installation_path[0] == L'\0') continue;
+
+        hash_slot = hash_list + ((SIZE_T)hash_count * SHA256_HEX_CCH);
+
+        result = hash_string(
+            PTR(jvm).installation_path,
+            hash_slot,
+            SHA256_HEX_CCH
+        );
+
+        if (!_IS_SUCCESS(result)) {
+            HeapFree(GetProcessHeap(), 0, hash_list);
+            return result;
+        }
+
+        hash_count++;
+    }
+
+    PTR(hash_list_out)  = hash_list;
+    PTR(hash_count_out) = hash_count;
+
+    return ST_CODE_SUCCESS;
+}
+
+errorcode_t db_agent_pair_jvminstances(AGENT_DB db, SYSTEM_DETAILS sysdetails, LPCWSTR hostname_hash) {
+    sqlite3_stmt *select_stmt = NULL;
+    sqlite3_stmt *update_stmt = NULL;
+
+    LPWSTR active_hash_list = NULL;
+    DWORD active_hash_count = 0;
+
+    errorcode_t result = ST_CODE_SUCCESS;
+    errorcode_t fin_select_result;
+    errorcode_t fin_update_result;
+
+    int step_rc;
+    int remove_ctrl;
+
+    NEW_LPWSTR(now_iso, DB_UTC_ISO_CCH);
+
+    if (db == NULL ||
+        PTR(db).handle == NULL ||
+        sysdetails == NULL ||
+        hostname_hash == NULL ||
+        hostname_hash[0] == L'\0') {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    result = db_now_utc_iso(now_iso, ARRAY_LEN_COUNT(now_iso));
+    if (!_IS_SUCCESS(result)) {
+        return result;
+    }
+
+    result = db_build_active_jvm_hash_list(
+        sysdetails,
+        &active_hash_list,
+        &active_hash_count
+    );
+
+    if (!_IS_SUCCESS(result)) {
+        return result;
+    }
+
+    result = agent_db_prepare(
+        db,                                         /* Database object reference */
+        k_agent_jvm_select_hashes_by_system_dml,    /* Select all the JVM hashes per system hash */
+        &select_stmt
+    );
+    if (!_IS_SUCCESS(result)) {
+        goto cleanup;
+    }
+
+    result = agent_db_prepare(
+        db,
+        k_agent_jvm_pair_state_update_dml,
+        &update_stmt
+    );
+    if (!_IS_SUCCESS(result)) {
+        goto cleanup;
+    }
+
+    DB_TRY(agent_db_bind_text16_or_null(select_stmt, 1, hostname_hash));
+
+    while ((step_rc = sqlite3_step(select_stmt)) == SQLITE_ROW) {
+        LPCWSTR db_installpath_hash;
+
+        /*
+         * sqlite3_column_text16() returns memory owned by SQLite.
+         * It remains valid until the statement is stepped/reset/finalized.
+         */
+        db_installpath_hash = (LPCWSTR)sqlite3_column_text16(select_stmt, 0);
+        if (db_installpath_hash == NULL || db_installpath_hash[0] == L'\0') {
+            continue;
+        }
+
+        if (db_hash_in_list(db_installpath_hash, active_hash_list, active_hash_count)) {
+            remove_ctrl = DB_JVM_REMOVE_STILLEXISTS;
+        }
+        else {
+            remove_ctrl = DB_JVM_REMOVE_CTRL_REMOVED;
+
+            logmsg(LOGGING_WARN, L"[DB] It looks like the given JVM was removed, does not exist anymore (Updating): %ls", db_installpath_hash);
+        }
+
+        sqlite3_reset(update_stmt);
+        sqlite3_clear_bindings(update_stmt);
+
+        DB_TRY(agent_db_bind_int64(update_stmt, 1, remove_ctrl));
+        DB_TRY(agent_db_bind_text16_or_null(update_stmt, 2, now_iso));
+        DB_TRY(agent_db_bind_text16_or_null(update_stmt, 3, hostname_hash));
+        DB_TRY(agent_db_bind_text16_or_null(update_stmt, 4, db_installpath_hash));
+
+        DB_TRY(agent_db_step_done(update_stmt));
+    }
+
+    if (step_rc != SQLITE_DONE) {
+        result = ST_CODE_DB_EXEC_FAILED;
+        goto cleanup;
+    }
+
+cleanup:
+    fin_select_result = agent_db_finalize(select_stmt);
+    fin_update_result = agent_db_finalize(update_stmt);
+
+    if (active_hash_list != NULL) {
+        HeapFree(GetProcessHeap(), 0, active_hash_list);
+    }
+
+    if (_IS_SUCCESS(result) && !_IS_SUCCESS(fin_select_result)) {
+        result = fin_select_result;
+    }
+
+    if (_IS_SUCCESS(result) && !_IS_SUCCESS(fin_update_result)) {
+        result = fin_update_result;
     }
 
     return result;

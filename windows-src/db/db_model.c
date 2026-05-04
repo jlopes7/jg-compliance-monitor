@@ -228,6 +228,7 @@ const char *k_agent_jvm_upsert_dml =
         "    is_jre = excluded.is_jre,"
         "    is_ojdk = excluded.is_ojdk,"
         "    is_oracle = excluded.is_oracle,"
+        "    remove_ctrl = 1,"
         "    updated_date_utc = excluded.updated_date_utc;";
 
 const char *k_agent_productinfo_upsert_dml =
@@ -261,3 +262,21 @@ const char *k_agent_productinfo_upsert_dml =
         "    major_version = excluded.major_version,"
         "    minor_version = excluded.minor_version,"
         "    updated_date_utc = excluded.updated_date_utc;";
+
+const char *k_agent_jvm_select_hashes_by_system_dml =
+        "SELECT installpath_hash "
+        "FROM agent_jvm_details "
+        "WHERE hostname_hash = ?1;";
+
+const char *k_agent_jvm_pair_state_update_dml =
+        "UPDATE agent_jvm_details "
+        "SET "
+        "    remove_ctrl = ?1,"
+        "    sync_ctrl = CASE "
+        "        WHEN ?1 = 1 THEN 0 "
+        "        WHEN remove_ctrl <> ?1 THEN 0 "
+        "        ELSE sync_ctrl "
+        "    END,"
+        "    updated_date_utc = ?2 "
+        "WHERE hostname_hash = ?3 "
+        "  AND installpath_hash = ?4;";

@@ -409,6 +409,11 @@ static errorcode_t process_agent_db_updates(fs_runtime_t *rt, SYSTEM_DETAILS* sy
                 logmsg(LOGGING_NORMAL, L"[FS CRAWLER] +----> Product entry was created successfully: %ls", PTR(system_details)->jvm[jvm_counter]->product_name);
             }
         }
+
+        logmsg(LOGGING_NORMAL, L"[FS CRAWLER] Pairing all JVM findings with the local agent database");
+        db_agent_pair_jvminstances(agent_db, PTR(system_details), hostname_hash);
+
+        FREE_LPWSTR_ARRAY_HEAP(installpath_hashlst);
     }
     else {
         logmsg(LOGGING_ERROR, L"[FS CRAWLER] Failed to create the system entry. RC: %d", hostname, result);
