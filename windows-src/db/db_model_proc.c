@@ -166,7 +166,7 @@ static errorcode_t db_hash_pair(
     return hash_string(combined, buffer, buffer_cch);
 }
 
-errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails) {
+errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails, LPWSTR hostname_hash) {
     sqlite3_stmt *stmt = NULL;
     errorcode_t result = ST_CODE_SUCCESS;
     errorcode_t fin_result;
@@ -175,8 +175,9 @@ errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails) {
     int index = 1;
 
     NEW_LPWSTR(hostname, MAX_COMPUTERNAME_LENGTH + 1);
-    NEW_LPWSTR(hostname_hash, SHA256_HEX_CCH);
     NEW_LPWSTR(now_iso, DB_UTC_ISO_CCH);
+
+    ZeroMemory(hostname_hash, SHA256_HEX_CCH);
 
     if (db == NULL || PTR(db).handle == NULL || sysdetails == NULL) {
         return ST_CODE_INVALID_PARAM;
@@ -187,7 +188,7 @@ errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails) {
         return result;
     }
 
-    result = hash_string(hostname, hostname_hash, ARRAY_LEN_COUNT(hostname_hash));
+    result = hash_string(hostname, hostname_hash, SHA256_HEX_CCH);
     if (!_IS_SUCCESS(result)) {
         return result;
     }
@@ -244,17 +245,14 @@ cleanup:
     return result;
 }
 
-errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails) {
+errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails, LPCWSTR hostname_hash, LPWSTR installpath_hash) {
     sqlite3_stmt *stmt = NULL;
     errorcode_t result = ST_CODE_SUCCESS;
     errorcode_t fin_result;
 
-    wchar_t hostname[MAX_COMPUTERNAME_LENGTH + 1];
-    wchar_t hostname_hash[SHA256_HEX_CCH];
-    wchar_t installpath_hash[SHA256_HEX_CCH];
-    wchar_t now_iso[DB_UTC_ISO_CCH];
-
     int index = 1;
+
+    NEW_LPWSTR(now_iso, DB_UTC_ISO_CCH);
 
     if (db == NULL || PTR(db).handle == NULL || jvmdetails == NULL) {
         return ST_CODE_INVALID_PARAM;
@@ -264,20 +262,12 @@ errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails) {
         return ST_CODE_INVALID_PARAM;
     }
 
-    result = get_hostname(hostname, ARRAY_LEN_COUNT(hostname));
-    if (!_IS_SUCCESS(result)) {
-        return result;
-    }
-
-    result = hash_string(hostname, hostname_hash, ARRAY_LEN_COUNT(hostname_hash));
-    if (!_IS_SUCCESS(result)) {
-        return result;
-    }
+    ZeroMemory(installpath_hash, SHA256_HEX_CCH);
 
     result = hash_string(
         jvmdetails->installation_path,
         installpath_hash,
-        ARRAY_LEN_COUNT(installpath_hash)
+        SHA256_HEX_CCH
     );
 
     if (!_IS_SUCCESS(result)) {
@@ -334,14 +324,13 @@ cleanup:
     return result;
 }
 
-errorcode_t db_agent_productinfo_insert(AGENT_DB db, JVM_DETAILS jvmdetails) {
+errorcode_t db_agent_productinfo_insert(AGENT_DB db, JVM_DETAILS jvmdetails, LPCWSTR installpath_hash) {
     sqlite3_stmt *stmt = NULL;
     errorcode_t result = ST_CODE_SUCCESS;
     errorcode_t fin_result;
 
     PRODUCT_INFO product;
 
-    wchar_t installpath_hash[SHA256_HEX_CCH];
     wchar_t display_name_hash[SHA256_HEX_CCH];
     wchar_t now_iso[DB_UTC_ISO_CCH];
 
@@ -358,16 +347,6 @@ errorcode_t db_agent_productinfo_insert(AGENT_DB db, JVM_DETAILS jvmdetails) {
     product = jvmdetails->product_info;
     if (product == NULL || product->display_name == NULL || product->display_name[0] == L'\0') {
         return ST_CODE_INVALID_PARAM;
-    }
-
-    result = hash_string(
-        jvmdetails->installation_path,
-        installpath_hash,
-        ARRAY_LEN_COUNT(installpath_hash)
-    );
-
-    if (!_IS_SUCCESS(result)) {
-        return result;
     }
 
     /*

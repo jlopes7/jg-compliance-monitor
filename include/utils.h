@@ -59,9 +59,31 @@
 
 #define ARRAY_LEN_COUNT(arr)   (sizeof(arr) / sizeof((arr)[0]))
 
-#define NEW_LPWSTR(VAR,SZ) \
-    wchar_t VAR[(SZ)];  \
+#define NEW_LPWSTR(VAR,SZ)      \
+    wchar_t VAR[(SZ)];          \
     ZeroMemory(VAR, sizeof(VAR))
+
+#define NEW_LPWSTR_ARRAY(VAR,CCH,SZ_ARRAY)                                             \
+    wchar_t (*VAR)[(CCH)] = NULL;                                                      \
+    do {                                                                               \
+        size_t VAR##_count__ = (size_t)(SZ_ARRAY);                                     \
+        if ((CCH) != 0 &&                                                              \
+            VAR##_count__ <= SIZE_MAX / sizeof(wchar_t) / (size_t)(CCH)) {             \
+            (VAR) = HeapAlloc(                                                         \
+                GetProcessHeap(),                                                      \
+                HEAP_ZERO_MEMORY,                                                      \
+                VAR##_count__ * sizeof(*(VAR))                                         \
+            );                                                                         \
+        }                                                                              \
+    } while (0)
+
+#define FREE_LPWSTR_ARRAY_HEAP(VAR)                 \
+    do {                                            \
+        if (VAR) {                                  \
+            HeapFree(GetProcessHeap(), 0, (VAR));   \
+            (VAR) = NULL;                           \
+        }                                           \
+    } while (0)
 
 #define NEW_LPWSTR_HEAP(VAR, SZ) \
     LPWSTR VAR = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (SZ) * sizeof(wchar_t))

@@ -228,8 +228,6 @@ const char *k_agent_jvm_upsert_dml =
         "    is_jre = excluded.is_jre,"
         "    is_ojdk = excluded.is_ojdk,"
         "    is_oracle = excluded.is_oracle,"
-        "    sync_ctrl = 0,"
-        "    remove_ctrl = 1,"
         "    updated_date_utc = excluded.updated_date_utc;";
 
 const char *k_agent_productinfo_upsert_dml =

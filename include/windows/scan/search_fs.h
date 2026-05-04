@@ -7,6 +7,7 @@
 
 #include "utils.h"
 #include "windows/win-queue.h"
+#include "windows/db/agent_db.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -48,13 +49,14 @@ typedef struct _fs_search_options {
 
 typedef struct _fs_runtime {
     fs_search_options_t options;
-    fs_search_stats_t *stats;
+    fs_search_stats_t  *stats;
+    AGENT_DB            agent_db;
     QUEUE queue;
     volatile LONG found;
 } fs_runtime_t;
 
 typedef struct _fs_worker_ctx {
-    fs_runtime_t *runtime;
+    fs_runtime_t   *runtime;
     SYSTEM_DETAILS *sysdetails;
 } fs_worker_ctx_t;
 

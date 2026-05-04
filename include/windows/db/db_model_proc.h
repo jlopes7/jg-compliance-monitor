@@ -14,8 +14,8 @@
 #define DB_SYNC_NOT_SYNCED      0
 #define DB_REMOVE_FIRST_READ    0
 
-errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails);
-errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails);
-errorcode_t db_agent_productinfo_insert(AGENT_DB db, JVM_DETAILS jvmdetails);
+errorcode_t db_agent_system_insert(AGENT_DB db, SYSTEM_DETAILS sysdetails, LPWSTR hostname_hash);
+errorcode_t db_agent_jvm_insert(AGENT_DB db, JVM_DETAILS jvmdetails, LPCWSTR hostname_hash, LPWSTR installpath_hash);
+errorcode_t db_agent_productinfo_insert(AGENT_DB db, JVM_DETAILS jvmdetails, LPCWSTR installpath_hash);
 
 #endif //JG_COMPLIANCE_MONITOR_DB_MODEL_PROC_H

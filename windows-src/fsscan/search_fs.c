@@ -11,6 +11,7 @@
 
 #include "windows/evtlog.h"
 #include "windows/winreg_config.h"
+#include "windows/db/db_model_proc.h"
 
 static DWORD WINAPI fs_worker_thread(LPVOID param);
 static void fs_free_queue_item(QUEUE_ITEM item);
@@ -359,6 +360,66 @@ static errorcode_t fs_seed_roots(FS_RUNTIME rt) {
     return ST_CODE_SUCCESS;
 }
 
+static errorcode_t process_agent_db_updates(fs_runtime_t *rt, SYSTEM_DETAILS* system_details) {
+    AGENT_DB agent_db;
+    wchar_t hostname[MAX_STRING_LEN],
+            hostname_hash[SHA256_HEX_CCH];
+
+    errorcode_t result;
+
+    if (!PTR(system_details)) {
+        return ST_CODE_INVALID_PARAM;
+    }
+
+    get_hostname(hostname, MAX_STRING_LEN);
+
+    agent_db = PTR(rt).agent_db;
+
+    // Insert the system entity
+    result = db_agent_system_insert(agent_db, PTR(system_details), hostname_hash);
+    if (_IS_SUCCESS(result)) {
+        DWORD jvm_counter = 0;
+        NEW_LPWSTR_ARRAY(installpath_hashlst, /*string size*/SHA256_HEX_CCH, /*array size*/PTR(system_details)->jvm_count);
+
+        logmsg(LOGGING_NORMAL, L"[FS CRAWLER] The system entry was created successfully: %ls", hostname_hash);
+
+        // Insert the JVM entries
+        for ( ; jvm_counter < PTR(system_details)->jvm_count; jvm_counter++) {
+            result = db_agent_jvm_insert(agent_db, PTR(system_details)->jvm[jvm_counter], hostname_hash, installpath_hashlst[jvm_counter]);
+            if (!_IS_SUCCESS(result)) {
+                logmsg(LOGGING_ERROR,
+                    L"Failed to create the JVM entry associated with the system (%ls) into the agent database: %ls",
+                    hostname_hash,
+                    PTR(system_details)->jvm[jvm_counter]->installation_path);
+
+                // Skip to the next JVM entry, don't process the product
+                continue;
+            }
+
+            logmsg(LOGGING_NORMAL, L"[FS CRAWLER] +--> JVM entry was created successfully: %ls", installpath_hashlst[jvm_counter]);
+
+            result = db_agent_productinfo_insert(agent_db, PTR(system_details)->jvm[jvm_counter], installpath_hashlst[jvm_counter]);
+            if (!_IS_SUCCESS(result)) {
+                logmsg(LOGGING_ERROR,
+                    L"Failed to create the JVM product associated with the JVM (%ls) into the agent database: %ls",
+                    installpath_hashlst[jvm_counter],
+                    PTR(system_details)->jvm[jvm_counter]->product_name);
+            }
+            else {
+                logmsg(LOGGING_NORMAL, L"[FS CRAWLER] +----> Product entry was created successfully: %ls", PTR(system_details)->jvm[jvm_counter]->product_name);
+            }
+        }
+    }
+    else {
+        logmsg(LOGGING_ERROR, L"[FS CRAWLER] Failed to create the system entry. RC: %d", hostname, result);
+        return ST_CODE_DB_EXEC_FAILED;
+    }
+
+    logmsg(LOGGING_NORMAL, L"[FS CRAWLER] Finished processing the JVM entries for the system: %ls", hostname_hash);
+
+    return ST_CODE_SUCCESS;
+}
+
 errorcode_t fs_search_execute(const fs_search_options_t *options, fs_search_stats_t *stats) {
     fs_runtime_t rt;
     HANDLE workers[FS_SEARCH_MAX_WORKERS];
@@ -408,9 +469,10 @@ errorcode_t fs_search_execute(const fs_search_options_t *options, fs_search_stat
         return rc;
     }
 
+    rt.agent_db = agent_db;
     for (i = 0; i < worker_count; ++i) {
-        worker_ctx[i].runtime = &rt;
-        worker_ctx[i].sysdetails = PTR(options).user_ctx;
+        worker_ctx[i].runtime       = &rt;
+        worker_ctx[i].sysdetails    = PTR(options).user_ctx;
 
 
         workers[i] = CreateThread(
@@ -445,8 +507,17 @@ errorcode_t fs_search_execute(const fs_search_options_t *options, fs_search_stat
     logmsg(LOGGING_NORMAL, L"[FS CRAWLER] Closing the queue: %ls", FS_QUEUE_NAME);
     inmem_queue_destroy(rt.queue, fs_free_queue_item);
 
+    logmsg(LOGGING_NORMAL, L"[FS_CRAWLER] Processing the internal database updates");
+    rc = process_agent_db_updates(&rt, (SYSTEM_DETAILS*) PTR(options).user_ctx);
+    if (!_IS_SUCCESS(rc)) {
+        logmsg(LOGGING_ERROR, L"[FS CRAWLER] Failed to sync the entries into the agent database. Code: %d", rc);
+        agent_db_close(agent_db);
+        return rc;
+    }
+
     logmsg(LOGGING_NORMAL, L"[FS CRAWLER] Closing the local agent database");
     agent_db_close(agent_db);
+
 
     return ST_CODE_SUCCESS;
 }
